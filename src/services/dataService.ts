@@ -287,9 +287,9 @@ export const getDrawConfig = async (): Promise<DrawConfig | null> => {
     if (!data) return null;
     return {
       id: data.id,
-      name: data.name,
-      description: data.description,
-      value: data.value,
+      name: data.prize_name,
+      description: data.prize_description,
+      value: data.prize_value,
       drawDate: data.draw_date,
       imageUrl: data.image_url,
       isFree: data.is_free,
@@ -307,9 +307,9 @@ export const saveDrawConfig = async (config: Omit<DrawConfig, 'id'> & { id?: str
       result = await supabase
         .from('draw_config')
         .update({
-          name: config.name,
-          description: config.description,
-          value: config.value,
+          prize_name: config.name,
+          prize_description: config.description,
+          prize_value: config.value,
           draw_date: config.drawDate,
           image_url: config.imageUrl,
           is_free: config.isFree,
@@ -320,9 +320,9 @@ export const saveDrawConfig = async (config: Omit<DrawConfig, 'id'> & { id?: str
       result = await supabase
         .from('draw_config')
         .insert({
-          name: config.name,
-          description: config.description,
-          value: config.value,
+          prize_name: config.name,
+          prize_description: config.description,
+          prize_value: config.value,
           draw_date: config.drawDate,
           image_url: config.imageUrl,
           is_free: config.isFree,
