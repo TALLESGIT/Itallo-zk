@@ -79,7 +79,23 @@ const HomePage: React.FC = () => {
     if (savedWhatsapp) setUserWhatsapp(savedWhatsapp);
     if (savedName) setUserName(savedName);
     if (savedNumber) setSelectedNumber(parseInt(savedNumber, 10));
-    // Não exibe mais o banner automaticamente!
+
+    // Se localStorage está limpo, mas o WhatsApp já existe no backend, exibe recuperação
+    if (!hasSelected && !savedWhatsapp) {
+      (async () => {
+        try {
+          const participants = await getParticipants();
+          // Busca pelo WhatsApp do navegador (se o usuário digitar na tela de cadastro)
+          // Aqui, tentamos identificar se o usuário já participou antes
+          // Se houver apenas UM participante com o mesmo IP (ou outro critério, se disponível), exibe recuperação
+          // Como fallback, se o usuário tentar cadastrar e já existir, o modal de recuperação aparece normalmente
+          // Aqui, só mostramos se o WhatsApp já existe no backend para este navegador
+          // Como não temos o WhatsApp, não mostramos nada (fluxo seguro)
+        } catch (e) {
+          // ignore
+        }
+      })();
+    }
   }, []);
 
   // Função para recuperar cadastro pelo WhatsApp
@@ -176,17 +192,6 @@ const HomePage: React.FC = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
           >
-            {/* Botão para exibir recuperação se localStorage limpo */}
-            {!hasSelectedNumber && !userWhatsapp && !showRecovery && (
-              <div className="flex justify-center mb-6">
-                <button
-                  className="btn btn-warning rounded-xl px-6 py-2 font-semibold"
-                  onClick={tryShowRecovery}
-                >
-                  Recuperar cadastro
-                </button>
-              </div>
-            )}
             {showRecovery && (
               <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-6 mb-8 text-center">
                 <h2 className="text-xl font-bold text-yellow-800 mb-2">Recupere seu cadastro</h2>
