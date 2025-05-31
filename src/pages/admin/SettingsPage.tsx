@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import AdminLayout from '../../components/admin/AdminLayout';
 import { useApp } from '../../contexts/AppContext';
-import { RefreshCw, AlertTriangle, Trash2, Mail, Lock, Eye, EyeOff } from 'lucide-react';
+import { RefreshCw, AlertTriangle, Trash2, Mail, Lock, Eye, EyeOff, Upload } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { supabase } from '../../lib/supabase';
 import { getDrawConfig, saveDrawConfig } from '../../services/dataService';
@@ -32,6 +32,28 @@ const SettingsPage: React.FC = () => {
     callToAction: '',
     regulationUrl: '',
   });
+
+  // Upload da imagem do sorteio
+  const [uploading, setUploading] = useState(false);
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `banner_${Date.now()}.${fileExt}`;
+      const filePath = `banners/${fileName}`;
+      const { error: uploadError } = await supabase.storage.from('banners').upload(filePath, file, { upsert: true });
+      if (uploadError) throw uploadError;
+      const { data } = supabase.storage.from('banners').getPublicUrl(filePath);
+      setForm((prev) => ({ ...prev, imageUrl: data.publicUrl }));
+      toast.success('Imagem enviada com sucesso!');
+    } catch (err) {
+      toast.error('Erro ao enviar imagem.');
+    } finally {
+      setUploading(false);
+    }
+  };
 
   // Carregar config ao abrir
   useEffect(() => {
@@ -253,9 +275,22 @@ const SettingsPage: React.FC = () => {
                       <label className="font-semibold">Data do Sorteio</label>
                       <input name="drawDate" type="datetime-local" value={form.drawDate} onChange={handleFormChange} className="form-input" required />
                     </div>
-                    <div className="flex flex-col gap-2">
-                      <label className="font-semibold">URL da Imagem</label>
-                      <input name="imageUrl" value={form.imageUrl} onChange={handleFormChange} className="form-input" required />
+                    <div className="flex flex-col gap-3">
+                      <label className="block text-base font-semibold text-gray-700 mb-1">Imagem do Sorteio</label>
+                      <div className="flex items-center gap-4">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleImageUpload}
+                          className="form-input"
+                          disabled={uploading}
+                        />
+                        {uploading && <span className="text-sm text-blue-600">Enviando...</span>}
+                        {form.imageUrl && (
+                          <img src={form.imageUrl} alt="Banner" className="w-24 h-16 object-cover rounded-lg border" />
+                        )}
+                      </div>
+                      <span className="text-xs text-gray-500">A imagem será exibida no banner do sorteio.</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <input name="isFree" type="checkbox" checked={form.isFree} onChange={handleFormChange} />

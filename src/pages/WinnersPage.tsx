@@ -69,6 +69,18 @@ const WinnersPage: React.FC = () => {
     });
   };
 
+  // Função robusta para camuflar o telefone
+  const maskWhatsapp = (w: string) => {
+    const digits = w.replace(/\D/g, '');
+    if (digits.length === 11) {
+      return `(${digits.slice(0,2)}) ${digits.slice(2,7)}-${digits.slice(7,8)}***`;
+    }
+    if (digits.length === 10) {
+      return `(${digits.slice(0,2)}) ${digits.slice(2,6)}-${digits.slice(6,7)}***`;
+    }
+    return digits.slice(0,3) + '*****';
+  };
+
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
@@ -132,7 +144,7 @@ const WinnersPage: React.FC = () => {
                         
                         <div className="flex items-center text-gray-600">
                           <Phone className="w-5 h-5 mr-2" />
-                          <span>{winner.whatsapp}</span>
+                          <span>{maskWhatsapp(winner.whatsapp)}</span>
                         </div>
                       </div>
                       

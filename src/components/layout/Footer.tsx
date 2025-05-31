@@ -75,7 +75,7 @@ const Footer: React.FC = () => {
                 whileHover={{ x: 5 }}
               >
                 <Mail size={20} className="text-primary" />
-                contato@zkpremios.com
+                <a href="mailto:itallozkoficial@gmail.com" className="hover:underline text-gray-300">itallozkoficial@gmail.com</a>
               </motion.li>
               <motion.li 
                 className="flex items-center gap-3 text-gray-300"
