@@ -17,6 +17,7 @@ const DrawPage: React.FC = () => {
   const [modalStep, setModalStep] = useState<'countdown' | 'result' | null>(null);
   const [modalCountdown, setModalCountdown] = useState(5);
   const [showFireworks, setShowFireworks] = useState(false);
+  const [showResultModal, setShowResultModal] = useState(false);
 
   // Buscar config do sorteio ao abrir página
   useEffect(() => {
@@ -82,6 +83,18 @@ const DrawPage: React.FC = () => {
     toast.info('Copiado para a área de transferência!');
   };
 
+  // Função para abrir o modal de resultado manualmente
+  const handleShowResultModal = () => {
+    setModalStep('result');
+    setShowResultModal(true);
+  };
+
+  // Função para fechar qualquer modal
+  const handleCloseModal = () => {
+    setModalStep(null);
+    setShowResultModal(false);
+  };
+
   return (
     <AdminLayout title="Sorteio">
       <div className="flex flex-col items-center justify-center min-h-[60vh] py-8">
@@ -108,28 +121,36 @@ const DrawPage: React.FC = () => {
             </div>
           </div>
         ) : appState.isDrawComplete && appState.winner ? (
-          <motion.div
-            className="bg-green-50 border border-green-100 rounded-2xl p-8 shadow-lg flex flex-col items-center mb-6"
-            initial={{ scale: 0.9, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ type: 'spring', damping: 20 }}
-          >
-            <Award className="text-green-500 mb-2" size={36} />
-            <h3 className="text-2xl font-bold text-green-800 mb-2">Vencedor do Sorteio</h3>
-            <div className="flex flex-col items-center gap-2 mb-4">
-              <span className="inline-block px-6 py-3 bg-primary text-white text-3xl font-extrabold rounded-xl shadow-lg animate-pulse">
-                {appState.winner.number}
-              </span>
-              <span className="text-lg font-semibold text-gray-800">{appState.winner.name}</span>
-              <span className="text-gray-600 flex items-center gap-2">
-                {appState.winner.whatsapp}
-                <button onClick={() => handleCopy(appState.winner.whatsapp)} className="ml-1 p-1 rounded hover:bg-gray-200">
-                  <Copy size={16} />
-                </button>
-              </span>
-              <span className="text-sm text-gray-500">Data: {formatDate(appState.winner.registrationDate)}</span>
-            </div>
-          </motion.div>
+          <>
+            <motion.div
+              className="bg-green-50 border border-green-100 rounded-2xl p-8 shadow-lg flex flex-col items-center mb-6"
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ type: 'spring', damping: 20 }}
+            >
+              <Award className="text-green-500 mb-2" size={36} />
+              <h3 className="text-2xl font-bold text-green-800 mb-2">Vencedor do Sorteio</h3>
+              <div className="flex flex-col items-center gap-2 mb-4">
+                <span className="inline-block px-6 py-3 bg-primary text-white text-3xl font-extrabold rounded-xl shadow-lg animate-pulse">
+                  {appState.winner.number}
+                </span>
+                <span className="text-lg font-semibold text-gray-800">{appState.winner.name}</span>
+                <span className="text-gray-600 flex items-center gap-2">
+                  {maskWhatsapp(appState.winner.whatsapp)}
+                  <button onClick={() => handleCopy(appState.winner.whatsapp)} className="ml-1 p-1 rounded hover:bg-gray-200">
+                    <Copy size={16} />
+                  </button>
+                </span>
+                <span className="text-sm text-gray-500">Data: {formatDate(appState.winner.registrationDate)}</span>
+              </div>
+            </motion.div>
+            <button
+              className="btn btn-primary w-full max-w-xs mx-auto mb-4"
+              onClick={handleShowResultModal}
+            >
+              Ver Resultado Animado
+            </button>
+          </>
         ) : (
           <div className="bg-white border border-gray-200 rounded-2xl p-8 shadow-md w-full max-w-lg flex flex-col items-center">
             {isAnimating ? (
@@ -188,9 +209,16 @@ const DrawPage: React.FC = () => {
           </div>
         )}
 
-        {modalStep && (
+        {modalStep && (showResultModal || modalStep !== 'result') && (
           <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-0 overflow-hidden relative flex flex-col items-center">
+              <button
+                className="absolute top-2 right-2 text-gray-400 hover:text-primary z-20"
+                onClick={handleCloseModal}
+                aria-label="Fechar"
+              >
+                ✕
+              </button>
               {modalStep === 'countdown' && (
                 <div className="flex flex-col items-center justify-center py-16">
                   <span className="text-6xl font-extrabold text-primary animate-bounce mb-4">{modalCountdown}</span>
