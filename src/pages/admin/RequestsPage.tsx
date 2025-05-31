@@ -23,7 +23,7 @@ const RequestsPage: React.FC = () => {
   const [requests, setRequests] = useState<ExtraNumbersRequest[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [processingId, setProcessingId] = useState<string | null>(null);
-  const { appState } = useApp();
+  const { appState, refreshData } = useApp();
 
   useEffect(() => {
     fetchRequests();
@@ -110,6 +110,7 @@ const RequestsPage: React.FC = () => {
 
       toast.success(`Solicitação aprovada! ${numbers.length} números foram gerados automaticamente.`);
       await fetchRequests();
+      await refreshData();
     } catch (error) {
       console.error('Error approving request:', error);
       toast.error('Erro ao aprovar solicitação. Tente novamente.');

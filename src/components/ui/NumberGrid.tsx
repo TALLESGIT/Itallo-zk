@@ -105,28 +105,28 @@ const NumberGrid: React.FC<NumberGridProps> = ({ onRegister }) => {
 
   return (
     <>
-      <div className="flex justify-between items-center mb-6 bg-white p-4 rounded-lg shadow-sm">
-        <button
-          onClick={() => setCurrentPage(prev => Math.max(0, prev - 1))}
-          disabled={currentPage === 0}
-          className="btn btn-outline flex items-center gap-2 disabled:opacity-50"
-        >
-          <ChevronLeft size={20} />
-          Anterior
-        </button>
-
-        <div className="text-sm font-medium text-gray-700">
-          Página {currentPage + 1} de {totalPages}
+      <div className="flex flex-col items-center mb-6 bg-white p-4 rounded-lg shadow-sm">
+        <div className="flex items-center gap-6">
+          <button
+            onClick={() => setCurrentPage(prev => Math.max(0, prev - 1))}
+            disabled={currentPage === 0}
+            className="btn btn-outline flex items-center gap-2 disabled:opacity-50"
+          >
+            <ChevronLeft size={20} />
+            Anterior
+          </button>
+          <span className="mx-2 text-sm font-medium text-gray-700 whitespace-nowrap">
+            Página {currentPage + 1} de {totalPages}
+          </span>
+          <button
+            onClick={() => setCurrentPage(prev => Math.min(totalPages - 1, prev + 1))}
+            disabled={currentPage === totalPages - 1}
+            className="btn btn-outline flex items-center gap-2 disabled:opacity-50"
+          >
+            Próximo
+            <ChevronRight size={20} />
+          </button>
         </div>
-
-        <button
-          onClick={() => setCurrentPage(prev => Math.min(totalPages - 1, prev + 1))}
-          disabled={currentPage === totalPages - 1}
-          className="btn btn-outline flex items-center gap-2 disabled:opacity-50"
-        >
-          Próximo
-          <ChevronRight size={20} />
-        </button>
       </div>
       
       <div className="number-grid">

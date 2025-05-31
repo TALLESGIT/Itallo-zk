@@ -1,9 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import AdminLayout from '../../components/admin/AdminLayout';
 import { useApp } from '../../contexts/AppContext';
 import { RefreshCw, AlertTriangle, Trash2, Mail, Lock, Eye, EyeOff } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { supabase } from '../../lib/supabase';
+import { getDrawConfig, saveDrawConfig } from '../../services/dataService';
+import type { DrawConfig } from '../../types';
 
 const SettingsPage: React.FC = () => {
   const { resetSystem } = useApp();
@@ -15,6 +17,55 @@ const SettingsPage: React.FC = () => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [drawConfig, setDrawConfig] = useState<DrawConfig | null>(null);
+  const [isLoadingConfig, setIsLoadingConfig] = useState(true);
+  const [isSavingConfig, setIsSavingConfig] = useState(false);
+
+  // Campos do formulário
+  const [form, setForm] = useState<Omit<DrawConfig, 'id'>>({
+    name: '',
+    description: '',
+    value: '',
+    drawDate: '',
+    imageUrl: '',
+    isFree: false,
+    callToAction: '',
+    regulationUrl: '',
+  });
+
+  // Carregar config ao abrir
+  useEffect(() => {
+    (async () => {
+      setIsLoadingConfig(true);
+      const config = await getDrawConfig();
+      setDrawConfig(config);
+      if (config) setForm({ ...config });
+      setIsLoadingConfig(false);
+    })();
+  }, []);
+
+  const handleFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value, type, checked } = e.target;
+    setForm((prev) => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value,
+    }));
+  };
+
+  const handleSaveConfig = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSavingConfig(true);
+    const success = await saveDrawConfig({ ...form, id: drawConfig?.id });
+    setIsSavingConfig(false);
+    if (success) {
+      toast.success('Configuração do sorteio/prêmio salva com sucesso!');
+      const config = await getDrawConfig();
+      setDrawConfig(config);
+      if (config) setForm({ ...config });
+    } else {
+      toast.error('Erro ao salvar configuração.');
+    }
+  };
 
   const handleReset = () => {
     setShowConfirmation(true);
@@ -98,45 +149,41 @@ const SettingsPage: React.FC = () => {
         <div className="w-full max-w-4xl">
           <div className="space-y-8">
             <div>
-              <h2 className="text-xl font-semibold mb-4">Credenciais do Administrador</h2>
-              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                <form onSubmit={handleUpdateCredentials} className="space-y-6">
-                  <div className="flex flex-col gap-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Novo Email
-                    </label>
+              <h2 className="text-2xl font-extrabold mb-6 text-primary text-center tracking-tight drop-shadow-sm">Credenciais do Administrador</h2>
+              <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-8 max-w-lg mx-auto">
+                <form onSubmit={handleUpdateCredentials} className="space-y-8">
+                  <div className="flex flex-col gap-3">
+                    <label className="block text-base font-semibold text-gray-700 mb-1">Novo Email</label>
                     <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none z-10">
-                        <Mail className="h-5 w-5 text-gray-400" />
+                      <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none z-10">
+                        <Mail className="h-5 w-5 text-primary" />
                       </div>
                       <input
                         type="email"
-                        className="form-input pl-12 w-full bg-blue-50 focus:bg-white"
-                        placeholder="Novo email"
+                        className="form-input pl-14 py-3 w-full bg-blue-50 focus:bg-white rounded-xl text-base placeholder-gray-400"
+                        placeholder="Digite o novo email do administrador"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                       />
                     </div>
                   </div>
 
-                  <div className="flex flex-col gap-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Nova Senha
-                    </label>
+                  <div className="flex flex-col gap-3">
+                    <label className="block text-base font-semibold text-gray-700 mb-1">Nova Senha</label>
                     <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none z-10">
-                        <Lock className="h-5 w-5 text-gray-400" />
+                      <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none z-10">
+                        <Lock className="h-5 w-5 text-primary" />
                       </div>
                       <input
                         type={showPassword ? 'text' : 'password'}
-                        className="form-input pl-12 pr-10 w-full bg-blue-50 focus:bg-white"
-                        placeholder="Nova senha"
+                        className="form-input pl-14 pr-12 py-3 w-full bg-blue-50 focus:bg-white rounded-xl text-base placeholder-gray-400"
+                        placeholder="Digite a nova senha"
                         value={newPassword}
                         onChange={(e) => setNewPassword(e.target.value)}
                       />
                       <button
                         type="button"
-                        className="absolute inset-y-0 right-0 pr-3 flex items-center z-20 text-gray-400 hover:text-gray-600"
+                        className="absolute inset-y-0 right-0 pr-4 flex items-center z-20 text-gray-400 hover:text-primary"
                         tabIndex={-1}
                         onClick={() => setShowPassword((v) => !v)}
                         aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
@@ -146,25 +193,23 @@ const SettingsPage: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="flex flex-col gap-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Confirmar Nova Senha
-                    </label>
+                  <div className="flex flex-col gap-3">
+                    <label className="block text-base font-semibold text-gray-700 mb-1">Confirmar Nova Senha</label>
                     <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none z-10">
-                        <Lock className="h-5 w-5 text-gray-400" />
+                      <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none z-10">
+                        <Lock className="h-5 w-5 text-primary" />
                       </div>
                       <input
                         type={showConfirmPassword ? 'text' : 'password'}
-                        className="form-input pl-12 pr-10 w-full bg-blue-50 focus:bg-white"
-                        placeholder="Confirmar nova senha"
+                        className="form-input pl-14 pr-12 py-3 w-full bg-blue-50 focus:bg-white rounded-xl text-base placeholder-gray-400"
+                        placeholder="Confirme a nova senha"
                         value={confirmPassword}
                         onChange={(e) => setConfirmPassword(e.target.value)}
                         disabled={isUpdating}
                       />
                       <button
                         type="button"
-                        className="absolute inset-y-0 right-0 pr-3 flex items-center z-20 text-gray-400 hover:text-gray-600"
+                        className="absolute inset-y-0 right-0 pr-4 flex items-center z-20 text-gray-400 hover:text-primary"
                         tabIndex={-1}
                         onClick={() => setShowConfirmPassword((v) => !v)}
                         aria-label={showConfirmPassword ? 'Ocultar senha' : 'Mostrar senha'}
@@ -176,12 +221,59 @@ const SettingsPage: React.FC = () => {
 
                   <button
                     type="submit"
-                    className="btn btn-primary w-full py-3 text-base mt-2"
+                    className="btn w-full py-3 text-lg mt-2 rounded-xl bg-primary hover:bg-primary/90 text-white font-bold shadow-md transition-all duration-200"
                     disabled={isUpdating}
                   >
                     {isUpdating ? 'Atualizando...' : 'Salvar Alterações'}
                   </button>
                 </form>
+              </div>
+            </div>
+
+            <div>
+              <h2 className="text-2xl font-extrabold mb-6 text-primary text-center tracking-tight drop-shadow-sm">Configuração do Sorteio/Prêmio</h2>
+              <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-8 max-w-2xl mx-auto">
+                {isLoadingConfig ? (
+                  <div className="text-center py-8 text-gray-500">Carregando...</div>
+                ) : (
+                  <form onSubmit={handleSaveConfig} className="space-y-6">
+                    <div className="flex flex-col gap-2">
+                      <label className="font-semibold">Nome do Sorteio/Prêmio</label>
+                      <input name="name" value={form.name} onChange={handleFormChange} className="form-input" required />
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <label className="font-semibold">Descrição</label>
+                      <textarea name="description" value={form.description} onChange={handleFormChange} className="form-input" rows={2} required />
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <label className="font-semibold">Valor do Prêmio</label>
+                      <input name="value" value={form.value} onChange={handleFormChange} className="form-input" required />
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <label className="font-semibold">Data do Sorteio</label>
+                      <input name="drawDate" type="datetime-local" value={form.drawDate} onChange={handleFormChange} className="form-input" required />
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <label className="font-semibold">URL da Imagem</label>
+                      <input name="imageUrl" value={form.imageUrl} onChange={handleFormChange} className="form-input" required />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <input name="isFree" type="checkbox" checked={form.isFree} onChange={handleFormChange} />
+                      <label className="font-semibold">Sorteio Grátis?</label>
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <label className="font-semibold">Chamada de Ação</label>
+                      <input name="callToAction" value={form.callToAction} onChange={handleFormChange} className="form-input" required />
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <label className="font-semibold">Link para Regulamento</label>
+                      <input name="regulationUrl" value={form.regulationUrl} onChange={handleFormChange} className="form-input" required />
+                    </div>
+                    <button type="submit" className="btn btn-primary w-full py-3 text-lg mt-2" disabled={isSavingConfig}>
+                      {isSavingConfig ? 'Salvando...' : 'Salvar Configuração'}
+                    </button>
+                  </form>
+                )}
               </div>
             </div>
 

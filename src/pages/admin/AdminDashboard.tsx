@@ -66,9 +66,9 @@ const AdminDashboard: React.FC = () => {
 
   return (
     <AdminLayout title="Dashboard">
-      <div className="w-full flex justify-center">
-        <div className="w-full max-w-4xl">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <div className="w-full flex justify-center px-2 md:px-8 lg:px-0">
+        <div className="w-full max-w-5xl">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-12">
             <div className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm">
               <div className="flex items-start justify-between">
                 <div>
@@ -118,8 +118,8 @@ const AdminDashboard: React.FC = () => {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="bg-white rounded-2xl border border-gray-200 p-8 shadow-md">
+          <div className="flex flex-col lg:flex-row gap-8 justify-center items-stretch">
+            <div className="bg-white rounded-2xl border border-gray-200 p-8 shadow-md w-full max-w-xl mx-auto">
               <h2 className="text-lg font-semibold mb-4">Status do Sorteio</h2>
               
               <div className="flex items-center mb-4">
@@ -147,7 +147,7 @@ const AdminDashboard: React.FC = () => {
               )}
             </div>
             
-            <div className="bg-white rounded-2xl border border-gray-200 p-8 shadow-md">
+            <div className="bg-white rounded-2xl border border-gray-200 p-8 shadow-md w-full max-w-xl mx-auto">
               <h2 className="text-lg font-semibold mb-4">Progresso da Campanha</h2>
               
               <div className="mb-4">

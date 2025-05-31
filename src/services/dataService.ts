@@ -264,3 +264,74 @@ export const getDashboardStats = async () => {
     };
   }
 };
+
+// DrawConfig management
+import type { DrawConfig } from '../types';
+
+export const getDrawConfig = async (): Promise<DrawConfig | null> => {
+  try {
+    const { data, error } = await supabase
+      .from('draw_config')
+      .select('*')
+      .order('updated_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (error) throw error;
+    if (!data) return null;
+    return {
+      id: data.id,
+      name: data.name,
+      description: data.description,
+      value: data.value,
+      drawDate: data.draw_date,
+      imageUrl: data.image_url,
+      isFree: data.is_free,
+      callToAction: data.call_to_action,
+      regulationUrl: data.regulation_url,
+    };
+  } catch (error) {
+    console.error('Erro ao buscar configuração do sorteio:', error);
+    return null;
+  }
+};
+
+export const saveDrawConfig = async (config: Omit<DrawConfig, 'id'> & { id?: string }): Promise<boolean> => {
+  try {
+    let result;
+    if (config.id) {
+      result = await supabase
+        .from('draw_config')
+        .update({
+          name: config.name,
+          description: config.description,
+          value: config.value,
+          draw_date: config.drawDate,
+          image_url: config.imageUrl,
+          is_free: config.isFree,
+          call_to_action: config.callToAction,
+          regulation_url: config.regulationUrl,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', config.id);
+    } else {
+      result = await supabase
+        .from('draw_config')
+        .insert({
+          name: config.name,
+          description: config.description,
+          value: config.value,
+          draw_date: config.drawDate,
+          image_url: config.imageUrl,
+          is_free: config.isFree,
+          call_to_action: config.callToAction,
+          regulation_url: config.regulationUrl,
+          updated_at: new Date().toISOString(),
+        });
+    }
+    if (result.error) throw result.error;
+    return true;
+  } catch (error) {
+    console.error('Erro ao salvar configuração do sorteio:', error);
+    return false;
+  }
+};

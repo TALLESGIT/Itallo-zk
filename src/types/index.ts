@@ -20,3 +20,15 @@ export interface AppState {
   isDrawComplete: boolean;
   winner: Participant | null;
 }
+
+export interface DrawConfig {
+  id: string;
+  name: string;
+  description: string;
+  value: string;
+  drawDate: string;
+  imageUrl: string;
+  isFree: boolean;
+  callToAction: string;
+  regulationUrl: string;
+}

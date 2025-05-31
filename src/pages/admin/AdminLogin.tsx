@@ -103,12 +103,6 @@ const AdminLogin: React.FC = () => {
                   </button>
                 </div>
               </form>
-              
-              <div className="mt-4 text-center text-sm text-gray-600">
-                <p>Para fins de demonstração, use:</p>
-                <p>Email: admin@zkpremios.com</p>
-                <p>Senha: adminZK2025</p>
-              </div>
             </div>
           </motion.div>
         </div>

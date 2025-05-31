@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import Header from '../components/layout/Header';
 import Footer from '../components/layout/Footer';
@@ -32,6 +32,9 @@ const HomePage: React.FC = () => {
   const totalNumbers = 1000;
   const availableNumbers = totalNumbers - selectedNumbers.length;
   const progressPercentage = (selectedNumbers.length / totalNumbers) * 100;
+
+  // Ref para o banner
+  const bannerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     // Restore state from localStorage
@@ -75,14 +78,16 @@ const HomePage: React.FC = () => {
     setUserWhatsapp(whatsapp);
     setSelectedNumber(number);
     setHasSelectedNumber(true);
-    
     // Save all state to localStorage
     localStorage.setItem('userName', name);
     localStorage.setItem('userWhatsapp', whatsapp);
     localStorage.setItem('selectedNumber', number.toString());
     localStorage.setItem('hasSelectedNumber', 'true');
-    
     toast.success('Número reservado com sucesso! Agora você pode solicitar números extras.');
+    // Scroll até o banner
+    setTimeout(() => {
+      bannerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 400);
   };
 
   return (
@@ -106,7 +111,9 @@ const HomePage: React.FC = () => {
               </p>
             </div>
             
-            <Banner url="https://zksorteios.com.br/campanha/r-usd-10-000-00-reias-no-pix-2" />
+            <div ref={bannerRef}>
+              <Banner url="https://zksorteios.com.br/campanha/r-usd-10-000-00-reias-no-pix-2" />
+            </div>
             
             <div className="flex flex-col sm:flex-row justify-center gap-4 my-8">
               <motion.button
