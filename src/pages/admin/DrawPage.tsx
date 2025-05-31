@@ -64,6 +64,7 @@ const DrawPage: React.FC = () => {
     await performDraw();
     setShowFireworks(true);
     setModalStep('result');
+    setShowResultModal(true);
   };
 
   const formatDate = (dateString: string | null) => {
@@ -144,12 +145,6 @@ const DrawPage: React.FC = () => {
                 <span className="text-sm text-gray-500">Data: {formatDate(appState.winner.registrationDate)}</span>
               </div>
             </motion.div>
-            <button
-              className="btn btn-primary w-full max-w-xs mx-auto mb-4"
-              onClick={handleShowResultModal}
-            >
-              Ver Resultado Animado
-            </button>
           </>
         ) : (
           <div className="bg-white border border-gray-200 rounded-2xl p-8 shadow-md w-full max-w-lg flex flex-col items-center">
