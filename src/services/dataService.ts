@@ -293,7 +293,6 @@ export const getDrawConfig = async (): Promise<DrawConfig | null> => {
       drawDate: data.draw_date,
       imageUrl: data.image_url,
       isFree: data.is_free,
-      regulationUrl: data.regulation_url,
     };
   } catch (error) {
     console.error('Erro ao buscar configuração do sorteio:', error);
@@ -314,7 +313,6 @@ export const saveDrawConfig = async (config: Omit<DrawConfig, 'id'> & { id?: str
           draw_date: config.drawDate,
           image_url: config.imageUrl,
           is_free: config.isFree,
-          regulation_url: config.regulationUrl,
           updated_at: new Date().toISOString(),
         })
         .eq('id', config.id);
@@ -328,7 +326,6 @@ export const saveDrawConfig = async (config: Omit<DrawConfig, 'id'> & { id?: str
           draw_date: config.drawDate,
           image_url: config.imageUrl,
           is_free: config.isFree,
-          regulation_url: config.regulationUrl,
           updated_at: new Date().toISOString(),
         });
     }

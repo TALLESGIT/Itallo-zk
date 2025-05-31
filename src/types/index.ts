@@ -29,5 +29,4 @@ export interface DrawConfig {
   drawDate: string;
   imageUrl: string;
   isFree: boolean;
-  regulationUrl: string;
 }

@@ -29,7 +29,6 @@ const SettingsPage: React.FC = () => {
     drawDate: '',
     imageUrl: '',
     isFree: false,
-    regulationUrl: '',
   });
 
   // Upload da imagem do sorteio
@@ -294,10 +293,6 @@ const SettingsPage: React.FC = () => {
                     <div className="flex items-center gap-2">
                       <input name="isFree" type="checkbox" checked={form.isFree} onChange={handleFormChange} />
                       <label className="font-semibold">Sorteio Grátis?</label>
-                    </div>
-                    <div className="flex flex-col gap-2">
-                      <label className="font-semibold">Link para Regulamento</label>
-                      <input name="regulationUrl" value={form.regulationUrl} onChange={handleFormChange} className="form-input" required />
                     </div>
                     <button type="submit" className="btn btn-primary w-full py-3 text-lg mt-2" disabled={isSavingConfig}>
                       {isSavingConfig ? 'Salvando...' : 'Salvar Configuração'}
