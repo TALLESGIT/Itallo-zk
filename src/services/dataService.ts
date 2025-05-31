@@ -293,7 +293,6 @@ export const getDrawConfig = async (): Promise<DrawConfig | null> => {
       drawDate: data.draw_date,
       imageUrl: data.image_url,
       isFree: data.is_free,
-      callToAction: data.call_to_action,
       regulationUrl: data.regulation_url,
     };
   } catch (error) {
@@ -315,7 +314,6 @@ export const saveDrawConfig = async (config: Omit<DrawConfig, 'id'> & { id?: str
           draw_date: config.drawDate,
           image_url: config.imageUrl,
           is_free: config.isFree,
-          call_to_action: config.callToAction,
           regulation_url: config.regulationUrl,
           updated_at: new Date().toISOString(),
         })
@@ -330,7 +328,6 @@ export const saveDrawConfig = async (config: Omit<DrawConfig, 'id'> & { id?: str
           draw_date: config.drawDate,
           image_url: config.imageUrl,
           is_free: config.isFree,
-          call_to_action: config.callToAction,
           regulation_url: config.regulationUrl,
           updated_at: new Date().toISOString(),
         });

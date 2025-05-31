@@ -29,7 +29,6 @@ const SettingsPage: React.FC = () => {
     drawDate: '',
     imageUrl: '',
     isFree: false,
-    callToAction: '',
     regulationUrl: '',
   });
 
@@ -295,10 +294,6 @@ const SettingsPage: React.FC = () => {
                     <div className="flex items-center gap-2">
                       <input name="isFree" type="checkbox" checked={form.isFree} onChange={handleFormChange} />
                       <label className="font-semibold">Sorteio Grátis?</label>
-                    </div>
-                    <div className="flex flex-col gap-2">
-                      <label className="font-semibold">Chamada de Ação</label>
-                      <input name="callToAction" value={form.callToAction} onChange={handleFormChange} className="form-input" required />
                     </div>
                     <div className="flex flex-col gap-2">
                       <label className="font-semibold">Link para Regulamento</label>
