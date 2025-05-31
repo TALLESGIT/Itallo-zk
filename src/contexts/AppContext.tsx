@@ -5,7 +5,7 @@ import { toast } from 'react-toastify';
 
 interface AppContextType {
   appState: AppState;
-  addParticipant: (participant: Omit<Participant, 'id' | 'registrationDate'>) => Promise<boolean>;
+  addParticipant: (participant: Omit<Participant, 'id' | 'registrationDate'>) => Promise<{ success: boolean; reason?: string; participant?: Participant }>;
   isNumberTaken: (number: number) => boolean;
   performDraw: () => Promise<Participant | null>;
   resetSystem: () => Promise<boolean>;
@@ -41,36 +41,42 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const addParticipant = async (
     participant: Omit<Participant, 'id' | 'registrationDate'>
-  ): Promise<boolean> => {
+  ): Promise<{ success: boolean; reason?: string; participant?: Participant }> => {
     try {
       if (isNumberTaken(participant.number)) {
         toast.error('Este número já está reservado. Por favor, escolha outro.');
-        return false;
+        return { success: false, reason: 'number_exists' };
       }
 
       if (participant.name.trim().split(' ').filter(Boolean).length < 2) {
         toast.error('Por favor, insira seu nome completo (nome e sobrenome).');
-        return false;
+        return { success: false, reason: 'invalid_name' };
       }
 
       const whatsappRegex = /^\(\d{2}\) \d{5}-\d{4}$/;
       if (!whatsappRegex.test(participant.whatsapp)) {
         toast.error('Formato de WhatsApp inválido. Use: (XX) XXXXX-XXXX');
-        return false;
+        return { success: false, reason: 'invalid_whatsapp' };
       }
 
-      const saved = await saveParticipant(participant);
-      if (saved) {
+      const result = await saveParticipant(participant);
+      if (result.success) {
         await refreshData();
         toast.success('Número reservado com sucesso!');
-        return true;
+        return { success: true };
+      } else if (result.reason === 'whatsapp_exists') {
+        toast.error('Já existe um cadastro para este WhatsApp. Recupere seu acesso.');
+        return { success: false, reason: 'whatsapp_exists', participant: result.participant };
+      } else if (result.reason === 'number_exists') {
+        toast.error('Este número já está reservado. Por favor, escolha outro.');
+        return { success: false, reason: 'number_exists' };
       } else {
         toast.error('Erro ao reservar número. Tente novamente.');
-        return false;
+        return { success: false, reason: result.reason };
       }
     } catch (error) {
       toast.error('Ocorreu um erro. Por favor, tente novamente.');
-      return false;
+      return { success: false, reason: 'unexpected_error' };
     }
   };
 

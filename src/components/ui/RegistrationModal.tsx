@@ -17,6 +17,9 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({ number, onClose, 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [step, setStep] = useState<'form' | 'confirmation'>('form');
   const [canConfirm, setCanConfirm] = useState(false);
+  const [showRecovery, setShowRecovery] = useState(false);
+  const [recoveryWhatsapp, setRecoveryWhatsapp] = useState('');
+  const [recoveryName, setRecoveryName] = useState('');
 
   const validateForm = (): boolean => {
     const newErrors = { name: '', whatsapp: '' };
@@ -55,25 +58,18 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({ number, onClose, 
 
   const handleWhatsAppConfirmation = async () => {
     setIsSubmitting(true);
-    
-    const formattedWhatsapp = whatsapp.replace(/\D/g, '');
-    const message = encodeURIComponent(
-      `Olá! Estou confirmando meu WhatsApp (${whatsapp}) para participar do sorteio ZK Prêmios. Meu nome é ${name}.`
-    );
-    
-    const whatsappLink = `https://wa.me/5531972393341?text=${message}`;
-    window.open(whatsappLink, '_blank');
-
-    const success = await addParticipant({
+    const result = await addParticipant({
       name,
       whatsapp,
       number,
     });
-    
     setIsSubmitting(false);
-    
-    if (success) {
+    if (result.success) {
       onComplete(name, whatsapp);
+    } else if (result.reason === 'whatsapp_exists' && result.participant) {
+      setShowRecovery(true);
+      setRecoveryWhatsapp(result.participant.whatsapp);
+      setRecoveryName(result.participant.name);
     }
   };
 
@@ -255,6 +251,14 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({ number, onClose, 
                       <span className="font-medium">{number}</span>
                     </div>
                   </div>
+
+                  {showRecovery && (
+                    <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-6 mb-4 text-center">
+                      <h2 className="text-xl font-bold text-yellow-800 mb-2">Já existe cadastro para este WhatsApp</h2>
+                      <p className="text-gray-700 mb-2">O número <span className="font-mono">{formatWhatsApp(recoveryWhatsapp)}</span> já está cadastrado como <b>{recoveryName}</b>.</p>
+                      <p className="text-gray-700">Se este número é seu, recupere o acesso na tela inicial clicando em "Recupere seu cadastro".</p>
+                    </div>
+                  )}
 
                   <div className="flex justify-end gap-3">
                     <button

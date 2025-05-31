@@ -59,15 +59,15 @@ export const getParticipants = async (): Promise<Participant[]> => {
 
 export const saveParticipant = async (
   participant: Omit<Participant, 'id' | 'registrationDate'>
-): Promise<boolean> => {
+): Promise<{ success: boolean; reason?: string; participant?: Participant }> => {
   try {
     // Impedir que o mesmo WhatsApp cadastre mais de um número
     const { data: existingByWhatsapp } = await supabase
       .from('participants')
-      .select('id')
+      .select('*')
       .eq('whatsapp', participant.whatsapp);
     if (existingByWhatsapp && existingByWhatsapp.length > 0) {
-      return false;
+      return { success: false, reason: 'whatsapp_exists', participant: existingByWhatsapp[0] };
     }
     // Impedir duplicidade de número
     const { data: existing } = await supabase
@@ -75,7 +75,7 @@ export const saveParticipant = async (
       .select('id')
       .eq('number', participant.number);
     if (existing && existing.length > 0) {
-      return false;
+      return { success: false, reason: 'number_exists' };
     }
     const { error } = await supabase
       .from('participants')
@@ -85,10 +85,11 @@ export const saveParticipant = async (
         number: participant.number,
         registration_date: new Date().toISOString()
       }]);
-    return !error;
+    if (error) return { success: false, reason: 'insert_error' };
+    return { success: true };
   } catch (error) {
     console.error('Error saving participant:', error);
-    return false;
+    return { success: false, reason: 'unexpected_error' };
   }
 };
 
