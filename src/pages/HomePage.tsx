@@ -97,7 +97,9 @@ const HomePage: React.FC = () => {
         toast.success('Cadastro recuperado com sucesso!');
         setShowRecovery(false);
       } else {
-        toast.error('Nenhum cadastro encontrado para este WhatsApp.');
+        // Não cadastrado: oculta recuperação e segue fluxo normal
+        setShowRecovery(false);
+        toast.info('Nenhum cadastro encontrado para este WhatsApp. Siga o fluxo normal para se cadastrar.');
       }
     } catch (err) {
       toast.error('Erro ao buscar cadastro. Tente novamente.');
