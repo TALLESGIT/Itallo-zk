@@ -37,6 +37,11 @@ const HomePage: React.FC = () => {
   // Ref para o banner
   const bannerRef = useRef<HTMLDivElement>(null);
 
+  // Novo estado para recuperação
+  const [showRecovery, setShowRecovery] = useState(false);
+  const [recoveryWhatsapp, setRecoveryWhatsapp] = useState('');
+  const [recoveryLoading, setRecoveryLoading] = useState(false);
+
   useEffect(() => {
     // Restore state from localStorage
     const hasSelected = localStorage.getItem('hasSelectedNumber') === 'true';
@@ -50,7 +55,9 @@ const HomePage: React.FC = () => {
     if (savedNumber) setSelectedNumber(parseInt(savedNumber, 10));
 
     // Fallback: se localStorage falhar, checar no backend
-    if (!hasSelected && savedWhatsapp) {
+    if (!hasSelected && !savedWhatsapp) {
+      setShowRecovery(true);
+    } else if (!hasSelected && savedWhatsapp) {
       (async () => {
         try {
           const participants = await getParticipants();
@@ -69,6 +76,35 @@ const HomePage: React.FC = () => {
       })();
     }
   }, []);
+
+  // Função para recuperar cadastro pelo WhatsApp
+  const handleRecovery = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!recoveryWhatsapp) return;
+    setRecoveryLoading(true);
+    try {
+      const participants = await getParticipants();
+      const found = participants.find(p => p.whatsapp === recoveryWhatsapp);
+      if (found) {
+        setUserWhatsapp(found.whatsapp);
+        setUserName(found.name);
+        setSelectedNumber(found.number);
+        setHasSelectedNumber(true);
+        localStorage.setItem('userWhatsapp', found.whatsapp);
+        localStorage.setItem('userName', found.name);
+        localStorage.setItem('selectedNumber', found.number.toString());
+        localStorage.setItem('hasSelectedNumber', 'true');
+        toast.success('Cadastro recuperado com sucesso!');
+        setShowRecovery(false);
+      } else {
+        toast.error('Nenhum cadastro encontrado para este WhatsApp.');
+      }
+    } catch (err) {
+      toast.error('Erro ao buscar cadastro. Tente novamente.');
+    } finally {
+      setRecoveryLoading(false);
+    }
+  };
 
   const handleExtraNumbersClick = () => {
     if (!hasSelectedNumber) {
@@ -122,6 +158,29 @@ const HomePage: React.FC = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
           >
+            {showRecovery && (
+              <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-6 mb-8 text-center">
+                <h2 className="text-xl font-bold text-yellow-800 mb-2">Recupere seu cadastro</h2>
+                <p className="text-gray-700 mb-4">Informe o WhatsApp usado no cadastro para recuperar seu número e liberar as opções.</p>
+                <form onSubmit={handleRecovery} className="flex flex-col items-center gap-4">
+                  <input
+                    type="text"
+                    className="form-input w-full max-w-xs text-center"
+                    placeholder="DDD + número (ex: 31999999999)"
+                    value={recoveryWhatsapp}
+                    onChange={e => setRecoveryWhatsapp(e.target.value)}
+                    disabled={recoveryLoading}
+                  />
+                  <button
+                    type="submit"
+                    className="btn btn-primary px-8"
+                    disabled={recoveryLoading || !recoveryWhatsapp}
+                  >
+                    {recoveryLoading ? 'Buscando...' : 'Recuperar'}
+                  </button>
+                </form>
+              </div>
+            )}
             <div className="text-center mb-8">
               <h1 className="text-3xl md:text-4xl font-extrabold mb-3 text-primary drop-shadow-sm tracking-tight">
                 Bem-vindo ao ZK Prêmios!
