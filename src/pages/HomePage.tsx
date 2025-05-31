@@ -9,6 +9,7 @@ import { Plus, Eye } from 'lucide-react';
 import ExtraNumbersModal from '../components/ui/ExtraNumbersModal';
 import ViewNumbersModal from '../components/ui/ViewNumbersModal';
 import { toast } from 'react-toastify';
+import { getParticipants } from '../services/dataService';
 
 const HomePage: React.FC = () => {
   const { appState } = useApp();
@@ -47,6 +48,26 @@ const HomePage: React.FC = () => {
     if (savedWhatsapp) setUserWhatsapp(savedWhatsapp);
     if (savedName) setUserName(savedName);
     if (savedNumber) setSelectedNumber(parseInt(savedNumber, 10));
+
+    // Fallback: se localStorage falhar, checar no backend
+    if (!hasSelected && savedWhatsapp) {
+      (async () => {
+        try {
+          const participants = await getParticipants();
+          const found = participants.find(p => p.whatsapp === savedWhatsapp);
+          if (found) {
+            setHasSelectedNumber(true);
+            setSelectedNumber(found.number);
+            setUserName(found.name);
+            localStorage.setItem('hasSelectedNumber', 'true');
+            localStorage.setItem('selectedNumber', found.number.toString());
+            localStorage.setItem('userName', found.name);
+          }
+        } catch (e) {
+          // ignore
+        }
+      })();
+    }
   }, []);
 
   const handleExtraNumbersClick = () => {
