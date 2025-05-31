@@ -61,15 +61,22 @@ export const saveParticipant = async (
   participant: Omit<Participant, 'id' | 'registrationDate'>
 ): Promise<boolean> => {
   try {
+    // Impedir que o mesmo WhatsApp cadastre mais de um número
+    const { data: existingByWhatsapp } = await supabase
+      .from('participants')
+      .select('id')
+      .eq('whatsapp', participant.whatsapp);
+    if (existingByWhatsapp && existingByWhatsapp.length > 0) {
+      return false;
+    }
+    // Impedir duplicidade de número
     const { data: existing } = await supabase
       .from('participants')
       .select('id')
       .eq('number', participant.number);
-
     if (existing && existing.length > 0) {
       return false;
     }
-
     const { error } = await supabase
       .from('participants')
       .insert([{
@@ -78,7 +85,6 @@ export const saveParticipant = async (
         number: participant.number,
         registration_date: new Date().toISOString()
       }]);
-
     return !error;
   } catch (error) {
     console.error('Error saving participant:', error);
@@ -240,16 +246,16 @@ export const exportParticipantsAsCSV = async (): string => {
 export const getDashboardStats = async () => {
   try {
     const participants = await getParticipants();
-    const drawStatus = await getDrawStatus();
-    
+    // Participantes únicos por WhatsApp
+    const uniqueWhatsapps = new Set(participants.map(p => p.whatsapp));
     return {
-      totalParticipants: participants.length,
+      totalParticipants: uniqueWhatsapps.size,
       reservedNumbers: participants.length,
       availableNumbers: 1000 - participants.length,
       reservationRate: (participants.length / 1000) * 100,
-      isDrawComplete: drawStatus.isComplete,
-      winner: drawStatus.winner,
-      drawDate: drawStatus.drawDate,
+      isDrawComplete: (await getDrawStatus()).isComplete,
+      winner: (await getDrawStatus()).winner,
+      drawDate: (await getDrawStatus()).drawDate,
     };
   } catch (error) {
     console.error('Error getting dashboard stats:', error);
