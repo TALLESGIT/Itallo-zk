@@ -41,6 +41,32 @@ const HomePage: React.FC = () => {
   const [showRecovery, setShowRecovery] = useState(false);
   const [recoveryWhatsapp, setRecoveryWhatsapp] = useState('');
   const [recoveryLoading, setRecoveryLoading] = useState(false);
+  const [recoveryError, setRecoveryError] = useState('');
+  const [recoveryStep, setRecoveryStep] = useState<'input'|'found'|'notfound'>('input');
+  const [recoveredName, setRecoveredName] = useState('');
+  const [recoveredNumber, setRecoveredNumber] = useState<number|null>(null);
+
+  // Função para formatar WhatsApp
+  const formatWhatsapp = (value: string): string => {
+    const digits = value.replace(/\D/g, '');
+    if (digits.length <= 2) {
+      return digits.length ? `(${digits}` : '';
+    } else if (digits.length <= 7) {
+      return `(${digits.substring(0, 2)}) ${digits.substring(2)}`;
+    } else if (digits.length <= 11) {
+      return `(${digits.substring(0, 2)}) ${digits.substring(2, 3)} ${digits.substring(3, 7)}-${digits.substring(7, 11)}`;
+    } else {
+      return `(${digits.substring(0, 2)}) ${digits.substring(2, 3)} ${digits.substring(3, 7)}-${digits.substring(7, 11)}`;
+    }
+  };
+
+  // Exibe banner só se localStorage limpo e usuário clicar em "Recuperar cadastro"
+  const tryShowRecovery = () => {
+    setShowRecovery(true);
+    setRecoveryStep('input');
+    setRecoveryWhatsapp('');
+    setRecoveryError('');
+  };
 
   useEffect(() => {
     // Restore state from localStorage
@@ -53,58 +79,48 @@ const HomePage: React.FC = () => {
     if (savedWhatsapp) setUserWhatsapp(savedWhatsapp);
     if (savedName) setUserName(savedName);
     if (savedNumber) setSelectedNumber(parseInt(savedNumber, 10));
-
-    // Fallback: se localStorage falhar, checar no backend
-    if (!hasSelected && !savedWhatsapp) {
-      setShowRecovery(true);
-    } else if (!hasSelected && savedWhatsapp) {
-      (async () => {
-        try {
-          const participants = await getParticipants();
-          const found = participants.find(p => p.whatsapp === savedWhatsapp);
-          if (found) {
-            setHasSelectedNumber(true);
-            setSelectedNumber(found.number);
-            setUserName(found.name);
-            localStorage.setItem('hasSelectedNumber', 'true');
-            localStorage.setItem('selectedNumber', found.number.toString());
-            localStorage.setItem('userName', found.name);
-          }
-        } catch (e) {
-          // ignore
-        }
-      })();
-    }
+    // Não exibe mais o banner automaticamente!
   }, []);
 
   // Função para recuperar cadastro pelo WhatsApp
   const handleRecovery = async (e: React.FormEvent) => {
     e.preventDefault();
+    setRecoveryError('');
+    setRecoveryStep('input');
     if (!recoveryWhatsapp) return;
     setRecoveryLoading(true);
     try {
       const participants = await getParticipants();
       const found = participants.find(p => p.whatsapp === recoveryWhatsapp);
       if (found) {
-        setUserWhatsapp(found.whatsapp);
-        setUserName(found.name);
-        setSelectedNumber(found.number);
-        setHasSelectedNumber(true);
-        localStorage.setItem('userWhatsapp', found.whatsapp);
-        localStorage.setItem('userName', found.name);
-        localStorage.setItem('selectedNumber', found.number.toString());
-        localStorage.setItem('hasSelectedNumber', 'true');
-        toast.success('Cadastro recuperado com sucesso!');
-        setShowRecovery(false);
+        setRecoveredName(found.name);
+        setRecoveredNumber(found.number);
+        setRecoveryStep('found');
+        // Só salva no localStorage se usuário clicar em "Recuperar acesso"
       } else {
-        // Não cadastrado: oculta recuperação e segue fluxo normal
-        setShowRecovery(false);
-        toast.info('Nenhum cadastro encontrado para este WhatsApp. Siga o fluxo normal para se cadastrar.');
+        setRecoveryStep('notfound');
+        setRecoveryError('Nenhum cadastro encontrado para este WhatsApp.');
       }
     } catch (err) {
-      toast.error('Erro ao buscar cadastro. Tente novamente.');
+      setRecoveryError('Erro ao buscar cadastro. Tente novamente.');
     } finally {
       setRecoveryLoading(false);
+    }
+  };
+
+  // Função para realmente restaurar o acesso
+  const handleRestoreAccess = () => {
+    if (recoveredName && recoveredNumber && recoveryWhatsapp) {
+      setUserWhatsapp(recoveryWhatsapp);
+      setUserName(recoveredName);
+      setSelectedNumber(recoveredNumber);
+      setHasSelectedNumber(true);
+      localStorage.setItem('userWhatsapp', recoveryWhatsapp);
+      localStorage.setItem('userName', recoveredName);
+      localStorage.setItem('selectedNumber', recoveredNumber.toString());
+      localStorage.setItem('hasSelectedNumber', 'true');
+      toast.success('Cadastro recuperado com sucesso!');
+      setShowRecovery(false);
     }
   };
 
@@ -160,27 +176,60 @@ const HomePage: React.FC = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
           >
+            {/* Botão para exibir recuperação se localStorage limpo */}
+            {!hasSelectedNumber && !userWhatsapp && !showRecovery && (
+              <div className="flex justify-center mb-6">
+                <button
+                  className="btn btn-warning rounded-xl px-6 py-2 font-semibold"
+                  onClick={tryShowRecovery}
+                >
+                  Recuperar cadastro
+                </button>
+              </div>
+            )}
             {showRecovery && (
               <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-6 mb-8 text-center">
                 <h2 className="text-xl font-bold text-yellow-800 mb-2">Recupere seu cadastro</h2>
-                <p className="text-gray-700 mb-4">Informe o WhatsApp usado no cadastro para recuperar seu número e liberar as opções.</p>
-                <form onSubmit={handleRecovery} className="flex flex-col items-center gap-4">
-                  <input
-                    type="text"
-                    className="form-input w-full max-w-xs text-center"
-                    placeholder="DDD + número (ex: 31999999999)"
-                    value={recoveryWhatsapp}
-                    onChange={e => setRecoveryWhatsapp(e.target.value)}
-                    disabled={recoveryLoading}
-                  />
-                  <button
-                    type="submit"
-                    className="btn btn-primary px-8"
-                    disabled={recoveryLoading || !recoveryWhatsapp}
-                  >
-                    {recoveryLoading ? 'Buscando...' : 'Recuperar'}
-                  </button>
-                </form>
+                {recoveryStep === 'input' && (
+                  <>
+                    <p className="text-gray-700 mb-4">Informe o WhatsApp usado no cadastro para recuperar seu número e liberar as opções.</p>
+                    <form onSubmit={handleRecovery} className="flex flex-col items-center gap-4">
+                      <input
+                        type="text"
+                        className="form-input w-full max-w-xs text-center"
+                        placeholder="(XX) X XXXX-XXXX"
+                        value={recoveryWhatsapp}
+                        onChange={e => setRecoveryWhatsapp(formatWhatsapp(e.target.value))}
+                        maxLength={15}
+                        disabled={recoveryLoading}
+                      />
+                      <button
+                        type="submit"
+                        className="btn btn-primary px-8"
+                        disabled={recoveryLoading || recoveryWhatsapp.length < 15}
+                      >
+                        {recoveryLoading ? 'Buscando...' : 'Recuperar'}
+                      </button>
+                      {recoveryError && <div className="text-red-600 text-sm mt-2">{recoveryError}</div>}
+                    </form>
+                  </>
+                )}
+                {recoveryStep === 'found' && (
+                  <>
+                    <p className="text-green-700 mb-4">Cadastro encontrado para <b>{recoveredName}</b>! Clique abaixo para restaurar o acesso.</p>
+                    <button className="btn btn-success px-8" onClick={handleRestoreAccess}>
+                      Recuperar acesso
+                    </button>
+                  </>
+                )}
+                {recoveryStep === 'notfound' && (
+                  <>
+                    <p className="text-red-700 mb-4">Nenhum cadastro encontrado para este WhatsApp.</p>
+                    <button className="btn btn-outline px-8" onClick={() => setRecoveryStep('input')}>
+                      Tentar outro número
+                    </button>
+                  </>
+                )}
               </div>
             )}
             <div className="text-center mb-8">
