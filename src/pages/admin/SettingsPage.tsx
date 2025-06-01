@@ -22,7 +22,7 @@ const SettingsPage: React.FC = () => {
   const [isSavingConfig, setIsSavingConfig] = useState(false);
 
   // Campos do formulário
-  const [form, setForm] = useState<Omit<DrawConfig, 'id'>>({
+  const [form, setForm] = useState({
     name: '',
     description: '',
     value: '',
@@ -59,7 +59,14 @@ const SettingsPage: React.FC = () => {
       setIsLoadingConfig(true);
       const config = await getDrawConfig();
       setDrawConfig(config);
-      if (config) setForm({ ...config });
+      if (config) setForm({
+        name: config.name,
+        description: config.description,
+        value: config.value,
+        drawDate: config.drawDate,
+        imageUrl: config.imageUrl,
+        isFree: config.isFree
+      });
       setIsLoadingConfig(false);
     })();
   }, []);
@@ -81,7 +88,14 @@ const SettingsPage: React.FC = () => {
       toast.success('Configuração do sorteio/prêmio salva com sucesso!');
       const config = await getDrawConfig();
       setDrawConfig(config);
-      if (config) setForm({ ...config });
+      if (config) setForm({
+        name: config.name,
+        description: config.description,
+        value: config.value,
+        drawDate: config.drawDate,
+        imageUrl: config.imageUrl,
+        isFree: config.isFree
+      });
     } else {
       toast.error('Erro ao salvar configuração.');
     }
