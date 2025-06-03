@@ -66,6 +66,9 @@ const ParticipantsList: React.FC = () => {
   }, {} as Record<string, Participant & { numbers: number[] }>);
   const participantsArray = Object.values(groupedParticipants);
 
+  // Adicionado para debug: mostrar todos os participantes carregados
+  console.log('Participantes carregados:', participantsArray);
+
   return (
     <AdminLayout title="Participantes">
       <div className="w-full flex justify-center">
