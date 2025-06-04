@@ -3,12 +3,14 @@ import AdminLayout from '../../components/admin/AdminLayout';
 import { useApp } from '../../contexts/AppContext';
 import { Participant } from '../../types';
 import { exportParticipantsAsCSV } from '../../services/dataService';
-import { Download, Search } from 'lucide-react';
+import { Download, Search, Trash2 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const ParticipantsList: React.FC = () => {
   const { appState, refreshData } = useApp();
   const [search, setSearch] = useState('');
   const [filteredParticipants, setFilteredParticipants] = useState<Participant[]>([]);
+  const [deleteModal, setDeleteModal] = useState<{ open: boolean; participant?: Participant } | null>(null);
 
   useEffect(() => {
     refreshData();
@@ -64,10 +66,28 @@ const ParticipantsList: React.FC = () => {
     }
     return acc;
   }, {} as Record<string, Participant & { numbers: number[] }>);
-  const participantsArray = Object.values(groupedParticipants);
+  const participantsArray = Object.values(groupedParticipants)
+    .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
 
   // Adicionado para debug: mostrar todos os participantes carregados
   console.log('Participantes carregados:', participantsArray);
+
+  const openDeleteModal = (participant: Participant) => {
+    setDeleteModal({ open: true, participant });
+  };
+
+  const closeDeleteModal = () => setDeleteModal(null);
+
+  const handleDelete = async (id: number) => {
+    const { deleteParticipant } = await import('../../services/dataService');
+    const result = await deleteParticipant(id);
+    if (result.success) {
+      await refreshData();
+      closeDeleteModal();
+    } else {
+      alert('Erro ao excluir participante: ' + (result.reason || 'Erro desconhecido'));
+    }
+  };
 
   return (
     <AdminLayout title="Participantes">
@@ -114,6 +134,9 @@ const ParticipantsList: React.FC = () => {
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Data de Registro
                     </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Ações
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
@@ -139,6 +162,16 @@ const ParticipantsList: React.FC = () => {
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         {formatDate(participant.registrationDate)}
                       </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-right">
+                        <button
+                          className="border border-red-300 bg-red-50 hover:bg-red-100 text-red-600 hover:text-red-800 rounded-full p-2 transition-colors duration-150 shadow-sm focus:outline-none focus:ring-2 focus:ring-red-300"
+                          title="Excluir participante"
+                          onClick={() => openDeleteModal(participant)}
+                          style={{ minWidth: 36, minHeight: 36, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
+                        >
+                          <Trash2 size={18} />
+                        </button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -156,6 +189,73 @@ const ParticipantsList: React.FC = () => {
           </div>
         </div>
       </div>
+
+      <AnimatePresence>
+        {deleteModal?.open && deleteModal.participant && (
+          <motion.div
+            className="modal-overlay backdrop-blur-sm z-50 fixed inset-0 flex items-center justify-center"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <motion.div
+              className="modal-content bg-white rounded-2xl overflow-hidden max-w-md w-full shadow-2xl"
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              transition={{ type: 'spring', damping: 25 }}
+            >
+              <div className="relative">
+                <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-primary via-secondary to-accent"></div>
+                <div className="p-6">
+                  <div className="flex justify-between items-center mb-6">
+                    <h2 className="text-2xl font-bold text-gray-800">Excluir participante</h2>
+                    <button
+                      onClick={closeDeleteModal}
+                      className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                      aria-label="Fechar"
+                    >
+                      <span className="sr-only">Fechar</span>
+                      <Trash2 size={20} className="text-gray-500" />
+                    </button>
+                  </div>
+                  <div className="mb-4 text-gray-700">
+                    Tem certeza que deseja excluir o participante abaixo?
+                  </div>
+                  <div className="bg-gray-50 p-4 rounded-xl mb-6 space-y-2">
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-600">Nome:</span>
+                      <span className="font-medium">{deleteModal.participant.name}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-600">WhatsApp:</span>
+                      <span className="font-medium">{deleteModal.participant.whatsapp}</span>
+                    </div>
+                  </div>
+                  <div className="flex justify-end gap-3">
+                    <button
+                      type="button"
+                      className="btn btn-outline rounded-xl"
+                      onClick={closeDeleteModal}
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      type="button"
+                      className="border border-red-300 bg-red-50 hover:bg-red-100 text-red-600 hover:text-red-800 rounded-full p-2 transition-colors duration-150 shadow-sm focus:outline-none focus:ring-2 focus:ring-red-300 flex items-center gap-2"
+                      style={{ minWidth: 36, minHeight: 36, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
+                      onClick={() => handleDelete(deleteModal.participant.id)}
+                    >
+                      Excluir
+                      <Trash2 size={18} />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </AdminLayout>
   );
 };

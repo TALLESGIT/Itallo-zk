@@ -336,3 +336,18 @@ export const saveDrawConfig = async (config: Omit<DrawConfig, 'id'> & { id?: str
     return false;
   }
 };
+
+// Deletar participante
+export const deleteParticipant = async (id: number): Promise<{ success: boolean; reason?: string }> => {
+  try {
+    const { error } = await supabase
+      .from('participants')
+      .delete()
+      .eq('id', id);
+    if (error) return { success: false, reason: error.message };
+    return { success: true };
+  } catch (error) {
+    console.error('Error deleting participant:', error);
+    return { success: false, reason: 'unexpected_error' };
+  }
+};

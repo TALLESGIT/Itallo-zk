@@ -46,6 +46,14 @@ const HomePage: React.FC = () => {
   const [recoveredName, setRecoveredName] = useState('');
   const [recoveredNumber, setRecoveredNumber] = useState<number|null>(null);
 
+  // Novo estado para o modal do banner
+  const [showBannerModal, setShowBannerModal] = useState(() => {
+    return localStorage.getItem('showBannerModal') === 'true';
+  });
+
+  // Novo estado para redirecionamento após clicar no banner
+  const [pendingBannerRedirect, setPendingBannerRedirect] = useState(false);
+
   // Função para formatar WhatsApp
   const formatWhatsapp = (value: string): string => {
     const digits = value.replace(/\D/g, '');
@@ -79,6 +87,29 @@ const HomePage: React.FC = () => {
     if (savedWhatsapp) setUserWhatsapp(savedWhatsapp);
     if (savedName) setUserName(savedName);
     if (savedNumber) setSelectedNumber(parseInt(savedNumber, 10));
+
+    // Se o localStorage indica cadastro, mas o WhatsApp não existe mais no banco, limpar localStorage
+    if (hasSelected && savedWhatsapp) {
+      (async () => {
+        try {
+          const participants = await getParticipants();
+          const found = participants.find(p => p.whatsapp === savedWhatsapp);
+          if (!found) {
+            // Limpa localStorage e estados
+            localStorage.removeItem('hasSelectedNumber');
+            localStorage.removeItem('userWhatsapp');
+            localStorage.removeItem('userName');
+            localStorage.removeItem('selectedNumber');
+            setHasSelectedNumber(false);
+            setUserWhatsapp('');
+            setUserName('');
+            setSelectedNumber(null);
+          }
+        } catch (e) {
+          // ignore
+        }
+      })();
+    }
 
     // Se localStorage está limpo, mas o WhatsApp já existe no backend, exibe recuperação
     if (!hasSelected && !savedWhatsapp) {
@@ -181,6 +212,12 @@ const HomePage: React.FC = () => {
     }, 400);
   };
 
+  const handleBannerClick = () => {
+    setShowBannerModal(true);
+    setPendingBannerRedirect(true);
+    localStorage.setItem('showBannerModal', 'true');
+  };
+
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
@@ -248,7 +285,7 @@ const HomePage: React.FC = () => {
             </div>
             
             <div ref={bannerRef}>
-              <Banner url="https://zksorteios.com.br/campanha/r-usd-10-000-00-reias-no-pix-2" />
+              <Banner url="https://zksorteios.com.br/campanha/r-usd-10-000-00-reias-no-pix-2" onClick={handleBannerClick} />
             </div>
             
             <div className="flex flex-col sm:flex-row justify-center gap-4 my-8">
@@ -365,6 +402,33 @@ const HomePage: React.FC = () => {
           onClose={() => setShowViewNumbersModal(false)}
           whatsapp={userWhatsapp}
         />
+      )}
+
+      {showBannerModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 text-center">
+            <h2 className="text-2xl font-bold mb-4 text-primary">Como garantir seus números extras?</h2>
+            <p className="mb-6 text-gray-700 text-base">
+              <b>1. Clique em "Entendi" abaixo para ser direcionado ao site da ação e realizar sua compra normalmente.</b><br/><br/>
+              <b>2. Após concluir a compra, volte para este aplicativo e clique no botão <span className='text-primary'>"Solicitar números extras"</span> na tela principal.</b><br/><br/>
+              <b>3. Somente após a equipe ZK Prêmios aprovar, seus números extras serão liberados e confirmados para o sorteio.</b><br/><br/>
+              <span className="text-sm text-gray-500">Dúvidas? Fale com nosso suporte pelo WhatsApp.</span>
+            </p>
+            <button
+              className="btn btn-primary px-8"
+              onClick={() => {
+                setShowBannerModal(false);
+                localStorage.removeItem('showBannerModal');
+                if (pendingBannerRedirect) {
+                  setPendingBannerRedirect(false);
+                  window.open('https://zksorteios.com.br/campanha/r-usd-10-000-00-reias-no-pix-2', '_blank');
+                }
+              }}
+            >
+              Entendi
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );

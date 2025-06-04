@@ -4,9 +4,10 @@ import React from 'react';
 interface BannerProps {
   url: string;
   imageUrl?: string;
+  onClick?: () => void;
 }
 
-const Banner: React.FC<BannerProps> = ({ url, imageUrl }) => {
+const Banner: React.FC<BannerProps> = ({ url, imageUrl, onClick }) => {
   // Fallback para erro de carregamento
   const [imgError, setImgError] = React.useState(false);
   const srcToUse = !imgError
@@ -14,13 +15,14 @@ const Banner: React.FC<BannerProps> = ({ url, imageUrl }) => {
     : undefined;
 
   return (
-    <motion.a
-      href={url}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="w-full block rounded-xl overflow-hidden shadow-lg mb-8 relative border border-white/20"
+    <motion.div
+      className="w-full block rounded-xl overflow-hidden shadow-lg mb-8 relative border border-white/20 cursor-pointer"
       whileHover={{ scale: 1.01 }}
       whileTap={{ scale: 0.99 }}
+      onClick={onClick}
+      role="button"
+      tabIndex={0}
+      onKeyPress={e => { if (e.key === 'Enter' || e.key === ' ') onClick && onClick(); }}
     >
       <div className="relative h-[220px] md:h-[320px] overflow-hidden bg-gradient-to-r from-blue-600 to-blue-800 flex items-center justify-center">
         {/* Imagem do sorteio grátis */}
@@ -48,7 +50,7 @@ const Banner: React.FC<BannerProps> = ({ url, imageUrl }) => {
           </div>
         </div>
       </div>
-    </motion.a>
+    </motion.div>
   );
 };
 

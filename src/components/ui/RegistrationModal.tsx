@@ -65,6 +65,8 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({ number, onClose, 
     });
     setIsSubmitting(false);
     if (result.success) {
+      // Abrir WhatsApp automaticamente
+      window.open(getWhatsappLink(), '_blank');
       onComplete(name, whatsapp);
     } else if (result.reason === 'whatsapp_exists' && result.participant) {
       setShowRecovery(true);
@@ -88,6 +90,14 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({ number, onClose, 
   const handleWhatsAppChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const formatted = formatWhatsApp(e.target.value);
     setWhatsapp(formatted);
+  };
+
+  // Função para montar o link do WhatsApp
+  const getWhatsappLink = () => {
+    const adminNumber = '31972393341';
+    // Mensagem automática personalizada
+    const msg = encodeURIComponent(`Olá! Estou confirmando meu WhatsApp ${whatsapp} para participar do sorteio ZK Prêmios. Meu nome é ${name}.`);
+    return `https://wa.me/55${adminNumber}?text=${msg}`;
   };
 
   return (
@@ -230,13 +240,11 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({ number, onClose, 
                       Instruções para confirmar:
                     </h3>
                     <ul className="space-y-2 text-blue-700">
-                      <li>1. O WhatsApp será aberto em uma nova aba/janela.</li>
+                      <li>1. Clique em "Confirmar Participação" para abrir o WhatsApp com a mensagem automática.</li>
                       <li>2. Envie a mensagem pré-definida para o administrador.</li>
-                      <li>3. Após 4s, o botão "Confirmar Participação" será habilitado aqui.</li>
-                      <li>4. Se o WhatsApp não abrir, verifique seu navegador.</li>
+                      <li>3. Se o WhatsApp não abrir, verifique seu navegador.</li>
                     </ul>
                   </div>
-                  
                   <div className="bg-gray-50 p-4 rounded-xl mb-6 space-y-3">
                     <div className="flex justify-between items-center">
                       <span className="text-gray-600">Nome:</span>
