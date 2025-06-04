@@ -25,5 +25,6 @@
     "tailwindcss": "latest",
     "typescript": "latest",
     "vite": "latest"
-  }
+  },
+  "version": "1.0.1"
 }
