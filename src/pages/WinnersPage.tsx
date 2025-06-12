@@ -41,23 +41,23 @@ const WinnersPage: React.FC = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-yellow-50 via-orange-50 to-red-50">
-      <div className="container mx-auto px-4 py-8">
+    <div className="min-h-screen bg-gradient-to-br from-yellow-50 via-orange-50 to-red-50 pt-20">
+      <div className="container mx-auto px-4 py-6 sm:py-8">
         {/* Header */}
         <motion.div
-          className="text-center mb-12"
+          className="text-center mb-8 sm:mb-12"
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
         >
-          <div className="flex items-center justify-center gap-4 mb-6">
-            <Crown className="w-12 h-12 text-yellow-500" />
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-gray-800">
+          <div className="flex items-center justify-center gap-2 sm:gap-4 mb-4 sm:mb-6">
+            <Crown className="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 text-yellow-500" />
+            <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-bold text-gray-800">
               🏆 Ganhadores
             </h1>
-            <Crown className="w-12 h-12 text-yellow-500" />
+            <Crown className="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 text-yellow-500" />
           </div>
-          <p className="text-gray-600 text-lg sm:text-xl max-w-3xl mx-auto">
+          <p className="text-gray-600 text-sm sm:text-base lg:text-lg xl:text-xl max-w-3xl mx-auto px-2">
             Conheça os campeões do sorteio e os melhores jogadores de cada modalidade!
           </p>
         </motion.div>
@@ -65,40 +65,40 @@ const WinnersPage: React.FC = () => {
         {/* Sorteio Winner Section */}
         {appState.isDrawComplete && appState.winner && (
           <motion.div
-            className="mb-16"
+            className="mb-12 sm:mb-16"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.2 }}
           >
-            <div className="text-center mb-8">
-              <div className="flex items-center justify-center gap-3 mb-4">
-                <Trophy className="w-8 h-8 text-yellow-500" />
-                <h2 className="text-3xl sm:text-4xl font-bold text-gray-800">
+            <div className="text-center mb-6 sm:mb-8">
+              <div className="flex items-center justify-center gap-2 sm:gap-3 mb-3 sm:mb-4">
+                <Trophy className="w-6 h-6 sm:w-8 sm:h-8 text-yellow-500" />
+                <h2 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold text-gray-800">
                   🎁 Ganhador do Sorteio
                 </h2>
               </div>
-              <p className="text-gray-600 text-lg">
+              <p className="text-gray-600 text-sm sm:text-base lg:text-lg px-2">
                 O grande vencedor do nosso sorteio principal!
               </p>
             </div>
 
-            <div className="max-w-2xl mx-auto">
-              <div className="bg-gradient-to-r from-yellow-400 via-yellow-500 to-yellow-600 rounded-2xl p-8 text-white shadow-2xl">
+            <div className="max-w-2xl mx-auto px-2">
+              <div className="bg-gradient-to-r from-yellow-400 via-yellow-500 to-yellow-600 rounded-xl sm:rounded-2xl p-6 sm:p-8 text-white shadow-2xl">
                 <div className="text-center">
-                  <div className="w-24 h-24 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-6">
-                    <Crown className="w-12 h-12 text-white" />
+                  <div className="w-16 h-16 sm:w-20 sm:h-20 lg:w-24 lg:h-24 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-4 sm:mb-6">
+                    <Crown className="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 text-white" />
                   </div>
                   
-                  <h3 className="text-3xl font-bold mb-2">{appState.winner.name}</h3>
-                  <div className="space-y-2 text-yellow-100">
-                    <p className="text-xl">
-                      <strong>Número Sorteado:</strong> {appState.winner.number}
+                  <h3 className="text-xl sm:text-2xl lg:text-3xl font-bold mb-3 sm:mb-2 break-words">{appState.winner.name}</h3>
+                  <div className="space-y-2 sm:space-y-3 text-yellow-100">
+                    <p className="text-base sm:text-lg lg:text-xl">
+                      <strong>Número:</strong> {appState.winner.number}
                     </p>
-                    <p className="text-lg">
+                    <p className="text-sm sm:text-base lg:text-lg break-all">
                       <strong>WhatsApp:</strong> {appState.winner.whatsapp}
                     </p>
-                    <p className="text-lg">
-                      <strong>Data do Sorteio:</strong> {' '}
+                    <p className="text-sm sm:text-base lg:text-lg">
+                      <strong>Data:</strong> {' '}
                       {new Date(appState.drawDate || '').toLocaleDateString('pt-BR', {
                         day: '2-digit',
                         month: '2-digit',
@@ -120,19 +120,19 @@ const WinnersPage: React.FC = () => {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.4 }}
         >
-          <div className="text-center mb-12">
-            <div className="flex items-center justify-center gap-3 mb-4">
-              <Gamepad2 className="w-8 h-8 text-blue-500" />
-              <h2 className="text-3xl sm:text-4xl font-bold text-gray-800">
-                🎮 Hall da Fama dos Jogos
+          <div className="text-center mb-8 sm:mb-12">
+            <div className="flex items-center justify-center gap-2 sm:gap-3 mb-3 sm:mb-4">
+              <Gamepad2 className="w-6 h-6 sm:w-8 sm:h-8 text-blue-500" />
+              <h2 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold text-gray-800">
+                🎮 Hall da Fama
               </h2>
             </div>
-            <p className="text-gray-600 text-lg max-w-3xl mx-auto">
+            <p className="text-gray-600 text-sm sm:text-base lg:text-lg max-w-3xl mx-auto px-2">
               Os melhores jogadores de cada modalidade com suas conquistas e recordes!
             </p>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-8 max-w-7xl mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6 lg:gap-8 max-w-7xl mx-auto">
             {games.map((game, index) => (
               <motion.div
                 key={game.id}
@@ -154,18 +154,18 @@ const WinnersPage: React.FC = () => {
         {/* No Winners Yet */}
         {!appState.isDrawComplete && (
           <motion.div
-            className="text-center py-16"
+            className="text-center py-12 sm:py-16"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.6 }}
           >
-            <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
-              <Award className="w-12 h-12 text-gray-400" />
+            <div className="w-16 h-16 sm:w-20 sm:h-20 lg:w-24 lg:h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4 sm:mb-6">
+              <Award className="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 text-gray-400" />
             </div>
-            <h3 className="text-2xl font-bold text-gray-600 mb-4">
+            <h3 className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-600 mb-3 sm:mb-4 px-2">
               Sorteio ainda não realizado
             </h3>
-            <p className="text-gray-500 text-lg max-w-2xl mx-auto">
+            <p className="text-gray-500 text-sm sm:text-base lg:text-lg max-w-2xl mx-auto px-4">
               O sorteio principal ainda não foi realizado. Quando acontecer, 
               o ganhador aparecerá aqui junto com os campeões dos jogos!
             </p>
