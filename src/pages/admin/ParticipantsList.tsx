@@ -244,7 +244,7 @@ const ParticipantsList: React.FC = () => {
                       type="button"
                       className="border border-red-300 bg-red-50 hover:bg-red-100 text-red-600 hover:text-red-800 rounded-full p-2 transition-colors duration-150 shadow-sm focus:outline-none focus:ring-2 focus:ring-red-300 flex items-center gap-2"
                       style={{ minWidth: 36, minHeight: 36, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
-                      onClick={() => handleDelete(deleteModal.participant.id)}
+                      onClick={() => handleDelete(Number(deleteModal?.participant?.id) ?? 0)}
                     >
                       Excluir
                       <Trash2 size={18} />

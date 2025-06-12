@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { 
   Gamepad2, 
@@ -7,13 +7,15 @@ import {
   HelpCircle, 
   Search,
   Lock,
-  Unlock
+  Unlock,
+  BookOpen
 } from 'lucide-react';
 import WordGuessGame from '../components/games/WordGuessGame';
 import NumberGuessGame from '../components/games/NumberGuessGame';
 import MemoryGame from '../components/games/MemoryGame';
 import QuizGame from '../components/games/QuizGame';
 import WordSearchGame from '../components/games/WordSearchGame';
+import HangmanGame from '../components/games/HangmanGame';
 
 import { useGameSettings } from '../hooks/useGameSettings';
 
@@ -62,6 +64,14 @@ const GamesPage: React.FC = () => {
       color: 'from-purple-500 to-indigo-600',
       component: WordSearchGame,
     },
+    {
+      id: 'hangman_game',
+      name: 'Jogo da Forca',
+      description: 'Adivinhe a palavra antes que o boneco caia!',
+      icon: BookOpen,
+      color: 'from-yellow-500 to-amber-600',
+      component: HangmanGame,
+    },
   ];
 
   if (loading) {
@@ -81,6 +91,11 @@ const GamesPage: React.FC = () => {
 
     const GameComponent = game.component;
     
+    // Garantir que a página role para o topo ao abrir o jogo
+    useEffect(() => {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }, []);
+
     return (
       <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-white">
         <div className="container mx-auto px-4 py-6 sm:py-8">

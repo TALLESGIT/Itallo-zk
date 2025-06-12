@@ -345,6 +345,22 @@ const WordSearchGame: React.FC = () => {
     );
   };
 
+  const [cellSize, setCellSize] = useState(32);
+
+  // Função para recalcular o tamanho das células baseado na largura da tela
+  const calculateCellSize = () => {
+    const vw = window.innerWidth;
+    // Deixar margens de 32px (padding) e dividir pelo número de colunas (12)
+    const size = Math.max(28, Math.min(44, Math.floor((vw - 32) / 12)));
+    setCellSize(size);
+  };
+
+  useEffect(() => {
+    calculateCellSize();
+    window.addEventListener('resize', calculateCellSize);
+    return () => window.removeEventListener('resize', calculateCellSize);
+  }, []);
+
   return (
     <div className="max-w-6xl mx-auto p-4">
       {/* Header */}
@@ -437,62 +453,44 @@ const WordSearchGame: React.FC = () => {
               )}
 
               <div className="flex justify-center">
-                <div 
-                  className="grid grid-cols-12 gap-1 sm:gap-2 select-none"
-                  onMouseLeave={() => !isMobile && setSelectedCells([])}
-                  style={{ 
-                    backfaceVisibility: 'hidden',
-                    transform: 'translateZ(0)',
-                    willChange: 'auto',
-                    userSelect: 'none',
-                    WebkitUserSelect: 'none',
-                    WebkitTouchCallout: 'none'
-                  }}
-                >
-                {grid.map((row, rowIndex) =>
-                  row.map((letter, colIndex) => (
-                    <div
-                      key={`${rowIndex}-${colIndex}`}
-                      className={`
-                        w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 flex items-center justify-center
-                        text-sm sm:text-base md:text-lg font-bold cursor-pointer
-                        border-2 transition-colors duration-150 select-none rounded-md
-                        ${isCellSelected(rowIndex, colIndex) 
-                          ? 'bg-blue-300 border-blue-500 text-blue-900 shadow-sm' 
-                          : isCellFirstClick(rowIndex, colIndex)
-                          ? 'bg-yellow-300 border-yellow-500 text-yellow-900 shadow-sm'
-                          : isCellInFoundWord(rowIndex, colIndex)
-                          ? 'bg-green-200 border-green-400 text-green-800'
-                          : 'bg-gray-50 border-gray-200 hover:bg-gray-100 hover:border-gray-300'
-                        }
-                      `}
-                      onClick={(e) => {
-                        e.preventDefault();
-                        handleCellClick(rowIndex, colIndex);
-                      }}
-                      onMouseDown={(e) => {
-                        e.preventDefault();
-                        handleCellMouseDown(rowIndex, colIndex);
-                      }}
-                      onMouseEnter={() => handleCellMouseEnter(rowIndex, colIndex)}
-                      onMouseUp={handleCellMouseUp}
-                      onTouchStart={(e) => {
-                        e.preventDefault();
-                        handleCellClick(rowIndex, colIndex);
-                      }}
-                      style={{
-                        backfaceVisibility: 'hidden',
-                        transform: 'translateZ(0)',
-                        userSelect: 'none',
-                        WebkitUserSelect: 'none',
-                        WebkitTouchCallout: 'none',
-                        WebkitTapHighlightColor: 'transparent'
-                      }}
-                                          >
-                        {letter}
-                    </div>
-                  ))
-                )}
+                <div className="overflow-x-auto">
+                  <div
+                    className="grid grid-cols-12 gap-[2px] mx-auto select-none"
+                    style={{ width: cellSize * 12 }}
+                  >
+                    {grid.map((row, rowIndex) =>
+                      row.map((letter, colIndex) => {
+                        const isSelected = selectedCells.some(
+                          (pos) => pos.row === rowIndex && pos.col === colIndex
+                        );
+                        const isFound = foundWords.some((fw) =>
+                          fw.positions.some(
+                            (pos) => pos.row === rowIndex && pos.col === colIndex
+                          )
+                        );
+
+                        return (
+                          <div
+                            key={`${rowIndex}-${colIndex}`}
+                            className={`flex items-center justify-center border text-sm font-bold md:text-base transition-colors duration-150 ${
+                              isFound
+                                ? 'bg-green-400 text-white'
+                                : isSelected
+                                ? 'bg-yellow-300 text-gray-800'
+                                : 'bg-white text-gray-800'
+                            }`}
+                            style={{ width: cellSize, height: cellSize }}
+                            onClick={() => handleCellClick(rowIndex, colIndex)}
+                            onMouseDown={() => handleCellMouseDown(rowIndex, colIndex)}
+                            onMouseEnter={() => handleCellMouseEnter(rowIndex, colIndex)}
+                            onMouseUp={handleCellMouseUp}
+                          >
+                            {letter}
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
                 </div>
               </div>
             </div>

@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Trophy, Crown, Award, Gamepad2, Hash, Brain, HelpCircle, Search } from 'lucide-react';
+import { Trophy, Crown, Award, Gamepad2, Hash, Brain, HelpCircle, Search, BookOpen } from 'lucide-react';
 import { useApp } from '../contexts/AppContext';
 import GameWinners from '../components/games/GameWinners';
 
@@ -37,6 +37,12 @@ const WinnersPage: React.FC = () => {
       name: 'Caça Palavras',
       icon: Search,
       color: 'from-purple-500 to-indigo-600',
+    },
+    {
+      id: 'hangman_game',
+      name: 'Jogo da Forca',
+      icon: BookOpen,
+      color: 'from-yellow-500 to-amber-600',
     },
   ];
 

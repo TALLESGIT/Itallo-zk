@@ -22,6 +22,7 @@ export const useGameSettings = () => {
     { game_name: 'memory_game', is_enabled: false },
     { game_name: 'quiz_game', is_enabled: false },
     { game_name: 'word_search', is_enabled: false },
+    { game_name: 'hangman_game', is_enabled: false },
   ];
 
   const fetchGameSettings = async () => {
@@ -114,6 +115,23 @@ export const useGameSettings = () => {
 
   useEffect(() => {
     fetchGameSettings();
+
+    // Escutar mudanças em tempo real na tabela game_settings (Supabase)
+    const channel = supabase
+      .channel('public:game_settings')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'game_settings' },
+        () => {
+          // Recarregar configurações quando algo mudar
+          fetchGameSettings();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   return {
