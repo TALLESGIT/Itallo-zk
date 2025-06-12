@@ -9,6 +9,7 @@ import ParticipantsList from './pages/admin/ParticipantsList';
 import RequestsPage from './pages/admin/RequestsPage';
 import DrawPage from './pages/admin/DrawPage';
 import SettingsPage from './pages/admin/SettingsPage';
+import AdminGamesPage from './pages/admin/AdminGamesPage';
 import GamesPage from './pages/GamesPage';
 import ProtectedRoute from './components/ProtectedRoute';
 
@@ -53,6 +54,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <DrawPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/games"
+            element={
+              <ProtectedRoute>
+                <AdminGamesPage />
               </ProtectedRoute>
             }
           />

@@ -14,6 +14,7 @@ import NumberGuessGame from '../components/games/NumberGuessGame';
 import MemoryGame from '../components/games/MemoryGame';
 import QuizGame from '../components/games/QuizGame';
 import RockPaperScissors from '../components/games/RockPaperScissors';
+
 import { useGameSettings } from '../hooks/useGameSettings';
 
 const GamesPage: React.FC = () => {
@@ -207,13 +208,15 @@ const GamesPage: React.FC = () => {
           })}
         </div>
 
+
+
         {/* Admin Notice */}
         {isAdmin && (
           <motion.div
             className="mt-8 p-4 bg-blue-50 border border-blue-200 rounded-lg max-w-2xl mx-auto"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.8 }}
+            transition={{ duration: 0.6, delay: 1.2 }}
           >
             <p className="text-blue-800 text-sm text-center">
               <strong>Admin:</strong> Você pode acessar todos os jogos. 

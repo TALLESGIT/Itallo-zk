@@ -5,6 +5,7 @@ import {
   GiftIcon,
   Settings,
   ListChecks,
+  Gamepad2,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
@@ -67,6 +68,11 @@ const AdminNav: React.FC = () => {
       path: '/admin/draw',
       label: 'Sorteio',
       icon: <GiftIcon size={20} />,
+    },
+    {
+      path: '/admin/games',
+      label: 'Brincadeiras',
+      icon: <Gamepad2 size={20} />,
     },
     {
       path: '/admin/settings',

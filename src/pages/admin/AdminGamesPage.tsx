@@ -1,0 +1,488 @@
+import { useState, useEffect } from 'react';
+import AdminLayout from '../../components/admin/AdminLayout';
+import { Brain, Plus, Edit, Trash2, Gamepad2, Hash, HelpCircle, Scissors, Lock, Unlock, AlertTriangle, X } from 'lucide-react';
+import { toast } from 'react-toastify';
+import { supabase } from '../../lib/supabase';
+import { motion } from 'framer-motion';
+import { useGameSettings } from '../../hooks/useGameSettings';
+
+const AdminGamesPage: React.FC = () => {
+  const { gameSettings, updateGameSetting, loading: gameSettingsLoading } = useGameSettings();
+  const [gameWords, setGameWords] = useState<any[]>([]);
+  const [newWord, setNewWord] = useState({ word: '', hint: '' });
+  const [editingWord, setEditingWord] = useState<any>(null);
+  const [showWordModal, setShowWordModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [wordToDelete, setWordToDelete] = useState<any>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  useEffect(() => {
+    fetchGameWords();
+  }, []);
+
+  const fetchGameWords = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('game_words')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setGameWords(data || []);
+    } catch (error) {
+      console.error('Erro ao buscar palavras:', error);
+      toast.error('Erro ao carregar palavras do jogo.');
+    }
+  };
+
+  const handleSaveWord = async () => {
+    if (!newWord.word.trim()) {
+      toast.error('A palavra é obrigatória!');
+      return;
+    }
+
+    try {
+      if (editingWord) {
+        const { error } = await supabase
+          .from('game_words')
+          .update({
+            word: newWord.word.trim().toLowerCase(),
+            hint: newWord.hint.trim() || null,
+          })
+          .eq('id', editingWord.id);
+
+        if (error) throw error;
+        toast.success('Palavra atualizada com sucesso!');
+      } else {
+        const { error } = await supabase
+          .from('game_words')
+          .insert({
+            word: newWord.word.trim().toLowerCase(),
+            hint: newWord.hint.trim() || null,
+            is_active: false,
+          });
+
+        if (error) throw error;
+        toast.success('Palavra adicionada com sucesso!');
+      }
+
+      setNewWord({ word: '', hint: '' });
+      setEditingWord(null);
+      setShowWordModal(false);
+      fetchGameWords();
+    } catch (error) {
+      console.error('Erro ao salvar palavra:', error);
+      toast.error('Erro ao salvar palavra.');
+    }
+  };
+
+  const handleActivateWord = async (wordId: number) => {
+    try {
+      // Primeiro, desativar todas as palavras
+      await supabase
+        .from('game_words')
+        .update({ is_active: false })
+        .neq('id', 0);
+
+      // Depois, ativar apenas a palavra selecionada
+      const { error } = await supabase
+        .from('game_words')
+        .update({ is_active: true })
+        .eq('id', wordId);
+
+      if (error) throw error;
+      toast.success('Palavra ativada com sucesso!');
+      fetchGameWords();
+    } catch (error) {
+      console.error('Erro ao ativar palavra:', error);
+      toast.error('Erro ao ativar palavra.');
+    }
+  };
+
+  const openDeleteModal = (word: any) => {
+    setWordToDelete(word);
+    setShowDeleteModal(true);
+  };
+
+  const closeDeleteModal = () => {
+    setWordToDelete(null);
+    setShowDeleteModal(false);
+    setIsDeleting(false);
+  };
+
+  const confirmDeleteWord = async () => {
+    if (!wordToDelete) return;
+
+    setIsDeleting(true);
+    try {
+      const { error } = await supabase
+        .from('game_words')
+        .delete()
+        .eq('id', wordToDelete.id);
+
+      if (error) throw error;
+      toast.success('Palavra excluída com sucesso!');
+      fetchGameWords();
+      closeDeleteModal();
+    } catch (error) {
+      console.error('Erro ao excluir palavra:', error);
+      toast.error('Erro ao excluir palavra.');
+      setIsDeleting(false);
+    }
+  };
+
+  const openEditModal = (word: any) => {
+    setEditingWord(word);
+    setNewWord({ word: word.word, hint: word.hint || '' });
+    setShowWordModal(true);
+  };
+
+  const openAddModal = () => {
+    setEditingWord(null);
+    setNewWord({ word: '', hint: '' });
+    setShowWordModal(true);
+  };
+
+  return (
+    <AdminLayout title="Brincadeiras">
+      <div className="flex justify-center">
+        <div className="w-full max-w-4xl">
+          <div className="space-y-8">
+            <div>
+              <h2 className="text-xl font-semibold mb-4">Configurações de Jogo</h2>
+              <div className="bg-white rounded-xl shadow-lg p-6">
+                <div className="flex items-center mb-6">
+                  <Brain className="text-primary mr-3" size={24} />
+                  <h2 className="text-xl font-bold text-gray-800">Palavras do Jogo</h2>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center">
+                    <p className="text-gray-600">
+                      Gerencie as palavras do jogo "Descubra a Palavra"
+                    </p>
+                    <button
+                      onClick={openAddModal}
+                      className="inline-flex items-center px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/80 transition-colors"
+                    >
+                      <Plus size={16} className="mr-2" />
+                      Nova Palavra
+                    </button>
+                  </div>
+
+                  {gameWords.length > 0 ? (
+                    <div className="space-y-3">
+                      {gameWords.map((word) => (
+                        <div
+                          key={word.id}
+                          className={`p-4 rounded-lg border-2 transition-all ${
+                            word.is_active 
+                              ? 'border-green-300 bg-green-50' 
+                              : 'border-gray-200 bg-gray-50'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-3">
+                                <span className="font-bold text-lg text-gray-800">
+                                  {word.word.toUpperCase()}
+                                </span>
+                                {word.is_active && (
+                                  <span className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full">
+                                    ATIVA
+                                  </span>
+                                )}
+                              </div>
+                              {word.hint && (
+                                <p className="text-sm text-gray-600 mt-1">
+                                  <strong>Dica:</strong> {word.hint}
+                                </p>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2">
+                              {!word.is_active && (
+                                <button
+                                  onClick={() => handleActivateWord(word.id)}
+                                  className="px-3 py-1 bg-green-500 text-white text-sm rounded hover:bg-green-600 transition-colors"
+                                >
+                                  Ativar
+                                </button>
+                              )}
+                              <button
+                                onClick={() => openEditModal(word)}
+                                className="p-2 text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                                title="Editar"
+                              >
+                                <Edit size={16} />
+                              </button>
+                              <button
+                                onClick={() => openDeleteModal(word)}
+                                className="p-2 text-red-600 hover:bg-red-50 rounded transition-colors"
+                                title="Excluir"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8 text-gray-500">
+                      <Brain size={48} className="mx-auto mb-4 text-gray-300" />
+                      <p>Nenhuma palavra cadastrada ainda.</p>
+                      <p className="text-sm">Adicione palavras para o jogo funcionar!</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <h2 className="text-xl font-semibold mb-4">Controle de Acesso aos Jogos</h2>
+              <div className="bg-white rounded-xl shadow-lg p-6">
+                <div className="flex items-center mb-6">
+                  <Gamepad2 className="text-primary mr-3" size={24} />
+                  <h2 className="text-xl font-bold text-gray-800">Liberar/Bloquear Jogos</h2>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="mb-4">
+                    <p className="text-gray-600">
+                      Controle quais jogos os usuários podem acessar. Jogos bloqueados aparecerão com cadeado.
+                    </p>
+                  </div>
+
+                  {gameSettingsLoading ? (
+                    <div className="text-center py-8 text-gray-500">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+                      <p>Carregando configurações...</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {[
+                        { id: 'word_guess', name: 'Descubra a Palavra', icon: Gamepad2, color: 'text-blue-600' },
+                        { id: 'number_guess', name: 'Adivinhe o Número', icon: Hash, color: 'text-green-600' },
+                        { id: 'memory_game', name: 'Jogo da Memória', icon: Brain, color: 'text-pink-600' },
+                        { id: 'quiz_game', name: 'Quiz Conhecimentos', icon: HelpCircle, color: 'text-orange-600' },
+                        { id: 'rock_paper_scissors', name: 'Pedra, Papel, Tesoura', icon: Scissors, color: 'text-indigo-600' },
+                      ].map((game) => {
+                        const Icon = game.icon;
+                        const setting = gameSettings.find(s => s.game_name === game.id);
+                        const isEnabled = setting?.is_enabled || false;
+                        
+                        return (
+                          <div
+                            key={game.id}
+                            className={`p-4 rounded-lg border-2 transition-all ${
+                              isEnabled 
+                                ? 'border-green-300 bg-green-50' 
+                                : 'border-red-300 bg-red-50'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-3">
+                                <Icon className={`${game.color} w-6 h-6`} />
+                                <div>
+                                  <span className="font-bold text-lg text-gray-800">
+                                    {game.name}
+                                  </span>
+                                  <div className="flex items-center gap-2 mt-1">
+                                    {isEnabled ? (
+                                      <>
+                                        <Unlock className="w-4 h-4 text-green-600" />
+                                        <span className="text-sm text-green-700 font-medium">
+                                          Liberado para usuários
+                                        </span>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <Lock className="w-4 h-4 text-red-600" />
+                                        <span className="text-sm text-red-700 font-medium">
+                                          Bloqueado para usuários
+                                        </span>
+                                      </>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <button
+                                  onClick={() => updateGameSetting(game.id, !isEnabled)}
+                                  className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                                    isEnabled
+                                      ? 'bg-red-500 text-white hover:bg-red-600'
+                                      : 'bg-green-500 text-white hover:bg-green-600'
+                                  }`}
+                                >
+                                  {isEnabled ? 'Bloquear' : 'Liberar'}
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {showWordModal && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="bg-white rounded-xl p-6 w-full max-w-md mx-4"
+              >
+                <h3 className="text-xl font-bold text-gray-800 mb-4">
+                  {editingWord ? 'Editar Palavra' : 'Nova Palavra'}
+                </h3>
+                
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Palavra *
+                    </label>
+                    <input
+                      type="text"
+                      value={newWord.word}
+                      onChange={(e) => setNewWord(prev => ({ ...prev, word: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+                      placeholder="Digite a palavra..."
+                      maxLength={20}
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Dica (opcional)
+                    </label>
+                    <textarea
+                      value={newWord.hint}
+                      onChange={(e) => setNewWord(prev => ({ ...prev, hint: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+                      placeholder="Digite uma dica para ajudar os jogadores..."
+                      rows={3}
+                      maxLength={200}
+                    />
+                  </div>
+                </div>
+                
+                <div className="flex gap-3 mt-6">
+                  <button
+                    onClick={() => setShowWordModal(false)}
+                    className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={handleSaveWord}
+                    className="flex-1 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/80 transition-colors"
+                  >
+                    {editingWord ? 'Atualizar' : 'Adicionar'}
+                  </button>
+                </div>
+              </motion.div>
+            </div>
+          )}
+
+          {showDeleteModal && wordToDelete && (
+            <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden"
+              >
+                {/* Header */}
+                <div className="bg-gradient-to-r from-red-500 to-red-600 px-6 py-4 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="bg-white/20 rounded-full p-2">
+                      <AlertTriangle className="w-6 h-6 text-white" />
+                    </div>
+                    <h3 className="text-xl font-bold text-white">
+                      Confirmar Exclusão
+                    </h3>
+                  </div>
+                  <button
+                    onClick={closeDeleteModal}
+                    className="text-white/80 hover:text-white transition-colors p-1 rounded-full hover:bg-white/20"
+                    disabled={isDeleting}
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                {/* Content */}
+                <div className="p-6">
+                  <div className="text-center mb-6">
+                    <div className="bg-red-50 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
+                      <Trash2 className="w-8 h-8 text-red-500" />
+                    </div>
+                    <p className="text-gray-700 text-lg mb-2">
+                      Tem certeza que deseja excluir a palavra
+                    </p>
+                    <div className="bg-gray-50 rounded-lg p-3 border-l-4 border-red-500">
+                      <span className="font-bold text-xl text-gray-800">
+                        "{wordToDelete.word.toUpperCase()}"
+                      </span>
+                      {wordToDelete.hint && (
+                        <p className="text-sm text-gray-600 mt-1">
+                          <strong>Dica:</strong> {wordToDelete.hint}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+                    <div className="flex items-start gap-3">
+                      <AlertTriangle className="w-5 h-5 text-yellow-600 mt-0.5 flex-shrink-0" />
+                      <div>
+                        <h4 className="font-medium text-yellow-800 mb-1">Atenção!</h4>
+                        <p className="text-sm text-yellow-700">
+                          Esta ação não pode ser desfeita. A palavra será permanentemente removida do sistema.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex gap-3">
+                    <button
+                      onClick={closeDeleteModal}
+                      className="flex-1 px-4 py-3 border-2 border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition-all duration-200 font-medium"
+                      disabled={isDeleting}
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      onClick={confirmDeleteWord}
+                      className="flex-1 px-4 py-3 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-xl hover:from-red-600 hover:to-red-700 transition-all duration-200 font-medium shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                      disabled={isDeleting}
+                    >
+                      {isDeleting ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                          Excluindo...
+                        </>
+                      ) : (
+                        <>
+                          <Trash2 className="w-4 h-4" />
+                          Excluir Palavra
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </div>
+      </div>
+    </AdminLayout>
+  );
+};
+
+export default AdminGamesPage; 

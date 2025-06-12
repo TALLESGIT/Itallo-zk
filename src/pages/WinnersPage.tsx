@@ -1,179 +1,177 @@
-import { useEffect, useState } from 'react';
+import React from 'react';
 import { motion } from 'framer-motion';
-import { Trophy, Calendar, User, Phone } from 'lucide-react';
-import Header from '../components/layout/Header';
-import Footer from '../components/layout/Footer';
-import { supabase } from '../lib/supabase';
-
-interface Winner {
-  id: string;
-  name: string;
-  whatsapp: string;
-  number: number;
-  draw_date: string;
-  prize_description?: string;
-  prize_value?: string;
-}
+import { Trophy, Crown, Award, Gamepad2, Hash, Brain, HelpCircle, Scissors } from 'lucide-react';
+import { useApp } from '../contexts/AppContext';
+import GameWinners from '../components/games/GameWinners';
 
 const WinnersPage: React.FC = () => {
-  const [winners, setWinners] = useState<Winner[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const { appState } = useApp();
 
-  useEffect(() => {
-    fetchWinners();
-  }, []);
-
-  const fetchWinners = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('draws')
-        .select(`
-          id,
-          created_at,
-          winner:participants (
-            id,
-            name,
-            whatsapp,
-            number
-          )
-        `)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-
-      const formattedWinners = data
-        .filter(d => d.winner)
-        .map(d => ({
-          id: d.winner.id,
-          name: d.winner.name,
-          whatsapp: d.winner.whatsapp,
-          number: d.winner.number,
-          draw_date: d.created_at,
-          prize_description: 'R$ 10.000,00 no PIX',
-          prize_value: 'R$ 10.000,00'
-        }));
-
-      setWinners(formattedWinners);
-    } catch (error) {
-      console.error('Error fetching winners:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('pt-BR', {
-      day: '2-digit',
-      month: 'long',
-      year: 'numeric'
-    });
-  };
-
-  // Função robusta para camuflar o telefone
-  const maskWhatsapp = (w: string) => {
-    const digits = w.replace(/\D/g, '');
-    if (digits.length === 11) {
-      return `(${digits.slice(0,2)}) ${digits.slice(2,7)}-${digits.slice(7,8)}***`;
-    }
-    if (digits.length === 10) {
-      return `(${digits.slice(0,2)}) ${digits.slice(2,6)}-${digits.slice(6,7)}***`;
-    }
-    return digits.slice(0,3) + '*****';
-  };
+  const games = [
+    {
+      id: 'word_guess',
+      name: 'Descubra a Palavra',
+      icon: Gamepad2,
+      color: 'from-blue-500 to-purple-600',
+    },
+    {
+      id: 'number_guess',
+      name: 'Adivinhe o Número',
+      icon: Hash,
+      color: 'from-green-500 to-teal-600',
+    },
+    {
+      id: 'memory_game',
+      name: 'Jogo da Memória',
+      icon: Brain,
+      color: 'from-pink-500 to-rose-600',
+    },
+    {
+      id: 'quiz_game',
+      name: 'Quiz Conhecimentos',
+      icon: HelpCircle,
+      color: 'from-orange-500 to-red-600',
+    },
+    {
+      id: 'rock_paper_scissors',
+      name: 'Pedra, Papel, Tesoura',
+      icon: Scissors,
+      color: 'from-indigo-500 to-blue-600',
+    },
+  ];
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <Header />
-      
-      <main className="flex-grow pt-20 pb-12">
-        <div className="container mx-auto px-4">
+    <div className="min-h-screen bg-gradient-to-br from-yellow-50 via-orange-50 to-red-50">
+      <div className="container mx-auto px-4 py-8">
+        {/* Header */}
+        <motion.div
+          className="text-center mb-12"
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+        >
+          <div className="flex items-center justify-center gap-4 mb-6">
+            <Crown className="w-12 h-12 text-yellow-500" />
+            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-gray-800">
+              🏆 Ganhadores
+            </h1>
+            <Crown className="w-12 h-12 text-yellow-500" />
+          </div>
+          <p className="text-gray-600 text-lg sm:text-xl max-w-3xl mx-auto">
+            Conheça os campeões do sorteio e os melhores jogadores de cada modalidade!
+          </p>
+        </motion.div>
+
+        {/* Sorteio Winner Section */}
+        {appState.isDrawComplete && appState.winner && (
           <motion.div
+            className="mb-16"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-            className="max-w-4xl mx-auto"
+            transition={{ duration: 0.6, delay: 0.2 }}
           >
-            <div className="text-center mb-12">
-              <div className="inline-block p-3 bg-yellow-100 rounded-full mb-4">
-                <Trophy className="w-8 h-8 text-yellow-600" />
+            <div className="text-center mb-8">
+              <div className="flex items-center justify-center gap-3 mb-4">
+                <Trophy className="w-8 h-8 text-yellow-500" />
+                <h2 className="text-3xl sm:text-4xl font-bold text-gray-800">
+                  🎁 Ganhador do Sorteio
+                </h2>
               </div>
-              <h1 className="text-3xl md:text-4xl font-bold mb-4 text-gray-800">
-                Ganhadores
-              </h1>
-              <p className="text-lg text-gray-600">
-                Conheça os felizardos que já foram premiados em nossos sorteios!
+              <p className="text-gray-600 text-lg">
+                O grande vencedor do nosso sorteio principal!
               </p>
             </div>
 
-            {isLoading ? (
-              <div className="flex justify-center items-center py-12">
-                <div className="animate-spin rounded-full h-12 w-12 border-4 border-primary border-t-transparent"></div>
+            <div className="max-w-2xl mx-auto">
+              <div className="bg-gradient-to-r from-yellow-400 via-yellow-500 to-yellow-600 rounded-2xl p-8 text-white shadow-2xl">
+                <div className="text-center">
+                  <div className="w-24 h-24 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-6">
+                    <Crown className="w-12 h-12 text-white" />
+                  </div>
+                  
+                  <h3 className="text-3xl font-bold mb-2">{appState.winner.name}</h3>
+                  <div className="space-y-2 text-yellow-100">
+                    <p className="text-xl">
+                      <strong>Número Sorteado:</strong> {appState.winner.number}
+                    </p>
+                    <p className="text-lg">
+                      <strong>WhatsApp:</strong> {appState.winner.whatsapp}
+                    </p>
+                    <p className="text-lg">
+                      <strong>Data do Sorteio:</strong> {' '}
+                      {new Date(appState.drawDate || '').toLocaleDateString('pt-BR', {
+                        day: '2-digit',
+                        month: '2-digit',
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                    </p>
+                  </div>
+                </div>
               </div>
-            ) : winners.length > 0 ? (
-              <div className="grid gap-6">
-                {winners.map((winner) => (
-                  <motion.div
-                    key={winner.id}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="bg-white rounded-xl shadow-md overflow-hidden"
-                  >
-                    <div className="p-6">
-                      <div className="flex items-center justify-between mb-4">
-                        <div className="flex items-center space-x-2">
-                          <Trophy className="w-6 h-6 text-yellow-500" />
-                          <h3 className="text-xl font-semibold text-gray-800">
-                            {winner.prize_description}
-                          </h3>
-                        </div>
-                        <span className="px-4 py-1 bg-primary/10 text-primary rounded-full font-medium">
-                          Número: {winner.number}
-                        </span>
-                      </div>
-                      
-                      <div className="space-y-3">
-                        <div className="flex items-center text-gray-600">
-                          <User className="w-5 h-5 mr-2" />
-                          <span>{winner.name}</span>
-                        </div>
-                        
-                        <div className="flex items-center text-gray-600">
-                          <Calendar className="w-5 h-5 mr-2" />
-                          <span>Sorteado em {formatDate(winner.draw_date)}</span>
-                        </div>
-                        
-                        <div className="flex items-center text-gray-600">
-                          <Phone className="w-5 h-5 mr-2" />
-                          <span>{maskWhatsapp(winner.whatsapp)}</span>
-                        </div>
-                      </div>
-                      
-                      <div className="mt-4 pt-4 border-t border-gray-100">
-                        <div className="flex justify-between items-center">
-                          <span className="text-sm text-gray-500">
-                            Prêmio
-                          </span>
-                          <span className="text-lg font-bold text-green-600">
-                            {winner.prize_value}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  </motion.div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-12 bg-gray-50 rounded-lg">
-                <p className="text-gray-600">
-                  Nenhum sorteio realizado ainda. Fique atento aos próximos!
-                </p>
-              </div>
-            )}
+            </div>
           </motion.div>
-        </div>
-      </main>
-      
-      <Footer />
+        )}
+
+        {/* Games Winners Section */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.4 }}
+        >
+          <div className="text-center mb-12">
+            <div className="flex items-center justify-center gap-3 mb-4">
+              <Gamepad2 className="w-8 h-8 text-blue-500" />
+              <h2 className="text-3xl sm:text-4xl font-bold text-gray-800">
+                🎮 Hall da Fama dos Jogos
+              </h2>
+            </div>
+            <p className="text-gray-600 text-lg max-w-3xl mx-auto">
+              Os melhores jogadores de cada modalidade com suas conquistas e recordes!
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-8 max-w-7xl mx-auto">
+            {games.map((game, index) => (
+              <motion.div
+                key={game.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.5 + index * 0.1 }}
+              >
+                <GameWinners
+                  gameId={game.id}
+                  gameName={game.name}
+                  gameColor={game.color}
+                  gameIcon={game.icon}
+                />
+              </motion.div>
+            ))}
+          </div>
+        </motion.div>
+
+        {/* No Winners Yet */}
+        {!appState.isDrawComplete && (
+          <motion.div
+            className="text-center py-16"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.6 }}
+          >
+            <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
+              <Award className="w-12 h-12 text-gray-400" />
+            </div>
+            <h3 className="text-2xl font-bold text-gray-600 mb-4">
+              Sorteio ainda não realizado
+            </h3>
+            <p className="text-gray-500 text-lg max-w-2xl mx-auto">
+              O sorteio principal ainda não foi realizado. Quando acontecer, 
+              o ganhador aparecerá aqui junto com os campeões dos jogos!
+            </p>
+          </motion.div>
+        )}
+      </div>
     </div>
   );
 };
