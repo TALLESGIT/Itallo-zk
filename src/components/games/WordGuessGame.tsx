@@ -26,7 +26,7 @@ const WordGuessGame: React.FC<WordGuessGameProps> = ({ onBack }) => {
         .from('game_words')
         .select('word, hint')
         .eq('is_active', true)
-        .single();
+        .limit(1);
 
       if (error) {
         console.error('Erro ao buscar palavra:', error);
@@ -34,11 +34,12 @@ const WordGuessGame: React.FC<WordGuessGameProps> = ({ onBack }) => {
         return;
       }
 
-      if (data) {
-        setSecretWord(data.word.toUpperCase());
-        setHint(data.hint || '');
+      if (data && data.length > 0) {
+        setSecretWord(data[0].word.toUpperCase());
+        setHint(data[0].hint || '');
       } else {
-        toast.info('Nenhuma palavra ativa encontrada. Aguarde o administrador configurar uma nova palavra.');
+        console.log('Nenhuma palavra ativa encontrada');
+        // Não definir secretWord deixa o componente mostrar a mensagem de indisponível
       }
     } catch (error) {
       console.error('Erro inesperado:', error);
