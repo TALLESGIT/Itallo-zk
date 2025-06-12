@@ -5,7 +5,7 @@ import {
   Hash, 
   Brain, 
   HelpCircle, 
-  Scissors,
+  Search,
   Lock,
   Unlock
 } from 'lucide-react';
@@ -13,7 +13,7 @@ import WordGuessGame from '../components/games/WordGuessGame';
 import NumberGuessGame from '../components/games/NumberGuessGame';
 import MemoryGame from '../components/games/MemoryGame';
 import QuizGame from '../components/games/QuizGame';
-import RockPaperScissors from '../components/games/RockPaperScissors';
+import WordSearchGame from '../components/games/WordSearchGame';
 
 import { useGameSettings } from '../hooks/useGameSettings';
 
@@ -55,12 +55,12 @@ const GamesPage: React.FC = () => {
       component: QuizGame,
     },
     {
-      id: 'rock_paper_scissors',
-      name: 'Pedra, Papel, Tesoura',
-      description: 'Clássico jogo contra o computador!',
-      icon: Scissors,
-      color: 'from-indigo-500 to-blue-600',
-      component: RockPaperScissors,
+      id: 'word_search',
+      name: 'Caça Palavras',
+      description: 'Encontre palavras escondidas no grid!',
+      icon: Search,
+      color: 'from-purple-500 to-indigo-600',
+      component: WordSearchGame,
     },
   ];
 

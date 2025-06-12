@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Trophy, Crown, Award, Gamepad2, Hash, Brain, HelpCircle, Scissors } from 'lucide-react';
+import { Trophy, Crown, Award, Gamepad2, Hash, Brain, HelpCircle, Search } from 'lucide-react';
 import { useApp } from '../contexts/AppContext';
 import GameWinners from '../components/games/GameWinners';
 
@@ -33,10 +33,10 @@ const WinnersPage: React.FC = () => {
       color: 'from-orange-500 to-red-600',
     },
     {
-      id: 'rock_paper_scissors',
-      name: 'Pedra, Papel, Tesoura',
-      icon: Scissors,
-      color: 'from-indigo-500 to-blue-600',
+      id: 'word_search',
+      name: 'Caça Palavras',
+      icon: Search,
+      color: 'from-purple-500 to-indigo-600',
     },
   ];
 

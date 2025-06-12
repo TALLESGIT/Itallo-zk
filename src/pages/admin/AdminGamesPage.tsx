@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import AdminLayout from '../../components/admin/AdminLayout';
-import { Brain, Plus, Edit, Trash2, Gamepad2, Hash, HelpCircle, Scissors, Lock, Unlock, AlertTriangle, X } from 'lucide-react';
+import { Brain, Plus, Edit, Trash2, Gamepad2, Hash, HelpCircle, Search, Lock, Unlock, AlertTriangle, X } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { supabase } from '../../lib/supabase';
 import { motion } from 'framer-motion';
@@ -265,7 +265,7 @@ const AdminGamesPage: React.FC = () => {
                         { id: 'number_guess', name: 'Adivinhe o Número', icon: Hash, color: 'text-green-600' },
                         { id: 'memory_game', name: 'Jogo da Memória', icon: Brain, color: 'text-pink-600' },
                         { id: 'quiz_game', name: 'Quiz Conhecimentos', icon: HelpCircle, color: 'text-orange-600' },
-                        { id: 'rock_paper_scissors', name: 'Pedra, Papel, Tesoura', icon: Scissors, color: 'text-indigo-600' },
+                        { id: 'word_search', name: 'Caça Palavras', icon: Search, color: 'text-purple-600' },
                       ].map((game) => {
                         const Icon = game.icon;
                         const setting = gameSettings.find(s => s.game_name === game.id);
