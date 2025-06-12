@@ -104,6 +104,40 @@ export const useGameWinners = () => {
 
   useEffect(() => {
     fetchWinners();
+
+    // Escutar alterações em tempo real na tabela game_winners
+    const channel = supabase
+      .channel('public:game_winners')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'game_winners' },
+        (payload: any) => {
+          // Atualizar localmente sem esperar nova consulta
+          setWinners(prev => {
+            switch (payload.eventType) {
+              case 'INSERT':
+                return [payload.new, ...prev];
+              case 'UPDATE':
+                return prev.map(w => w.id === payload.new.id ? payload.new : w);
+              case 'DELETE':
+                return prev.filter(w => w.id !== payload.old.id);
+              default:
+                return prev;
+            }
+          });
+        }
+      )
+      .subscribe();
+
+    // Fallback: polling a cada 30s para garantir sincronização
+    const poll = setInterval(() => {
+      fetchWinners();
+    }, 30000);
+
+    return () => {
+      supabase.removeChannel(channel);
+      clearInterval(poll);
+    };
   }, []);
 
   return {

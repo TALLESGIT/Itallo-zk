@@ -75,7 +75,7 @@ const GameWinners: React.FC<GameWinnersProps> = ({ gameId, gameName, gameColor, 
           <div className="text-center">
             <div className="flex items-center justify-center gap-1 mb-1">
               <TrendingUp className="w-4 h-4" />
-              <span className="text-2xl font-bold">{stats.bestScore}</span>
+              <span className="text-2xl font-bold">{stats.bestScore > 0 ? stats.bestScore : '--'}</span>
             </div>
             <p className="text-white/80 text-xs">Melhor Score</p>
           </div>
@@ -91,7 +91,7 @@ const GameWinners: React.FC<GameWinnersProps> = ({ gameId, gameName, gameColor, 
           <div className="text-center">
             <div className="flex items-center justify-center gap-1 mb-1">
               <Target className="w-4 h-4" />
-              <span className="text-2xl font-bold">{stats.averageScore}</span>
+              <span className="text-2xl font-bold">{stats.averageScore > 0 ? stats.averageScore : '--'}</span>
             </div>
             <p className="text-white/80 text-xs">Score Médio</p>
           </div>

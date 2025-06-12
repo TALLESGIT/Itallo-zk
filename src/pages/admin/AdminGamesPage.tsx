@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
 import AdminLayout from '../../components/admin/AdminLayout';
 import { Brain, Plus, Edit, Trash2, Gamepad2, Hash, HelpCircle, Search, Lock, Unlock, AlertTriangle, X, BookOpen } from 'lucide-react';
+import { AlertCircle } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { supabase } from '../../lib/supabase';
 import { motion } from 'framer-motion';
 import { useGameSettings } from '../../hooks/useGameSettings';
+import { Zap } from 'lucide-react';
 
 const AdminGamesPage: React.FC = () => {
   const { gameSettings, updateGameSetting, loading: gameSettingsLoading } = useGameSettings();
@@ -19,10 +21,18 @@ const AdminGamesPage: React.FC = () => {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [wordToDelete, setWordToDelete] = useState<any>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [showWinnersModal, setShowWinnersModal] = useState(false);
+  const [isWiping, setIsWiping] = useState(false);
+
+  // === Number Guess Config ===
+  const [currentSecret, setCurrentSecret] = useState<number | null>(null);
+  const [secretInput, setSecretInput] = useState<string>('');
+  const [savingSecret, setSavingSecret] = useState(false);
 
   useEffect(() => {
     fetchGameWords();
     fetchWordSearchWords();
+    fetchSecretNumber();
   }, []);
 
   const fetchGameWords = async () => {
@@ -52,6 +62,19 @@ const AdminGamesPage: React.FC = () => {
     } catch (error) {
       console.error('Erro ao buscar palavras do caça palavras:', error);
       toast.error('Erro ao carregar palavras do caça palavras.');
+    }
+  };
+
+  const fetchSecretNumber = async () => {
+    const { data, error } = await supabase
+      .from('number_guess_config')
+      .select('id, secret')
+      .order('id', { ascending: false })
+      .limit(1)
+      .single();
+    if (!error && data) {
+      setCurrentSecret(data.secret);
+      setSecretInput(String(data.secret));
     }
   };
 
@@ -305,6 +328,58 @@ const AdminGamesPage: React.FC = () => {
     }
   };
 
+  const wipeWinners = async () => {
+    setIsWiping(true);
+    try {
+      const { error } = await supabase.from('game_winners').delete().neq('id', 0);
+      if (error) throw error;
+      toast.success('Hall da Fama limpo com sucesso!');
+      setShowWinnersModal(false);
+    } catch (err) {
+      console.error('Erro ao limpar winners:', err);
+      toast.error('Erro ao limpar o Hall da Fama.');
+    } finally {
+      setIsWiping(false);
+    }
+  };
+
+  const saveSecretNumber = async () => {
+    const secret = parseInt(secretInput);
+    if (isNaN(secret) || secret < 1 || secret > 100) {
+      toast.error('Digite um número entre 1 e 100');
+      return;
+    }
+    setSavingSecret(true);
+    try {
+      if (currentSecret === null) {
+        // insert
+        const { error } = await supabase.from('number_guess_config').insert({ secret });
+        if (error) throw error;
+      } else {
+        const { data: existing } = await supabase
+          .from('number_guess_config')
+          .select('id')
+          .order('id', { ascending: false })
+          .limit(1)
+          .single();
+        if (existing) {
+          const { error } = await supabase
+            .from('number_guess_config')
+            .update({ secret, updated_at: new Date().toISOString() })
+            .eq('id', existing.id);
+          if (error) throw error;
+        }
+      }
+      toast.success('Número secreto atualizado!');
+      setCurrentSecret(secret);
+    } catch (err) {
+      console.error(err);
+      toast.error('Erro ao salvar número');
+    } finally {
+      setSavingSecret(false);
+    }
+  };
+
   return (
     <AdminLayout title="Brincadeiras">
       <div className="flex justify-center">
@@ -516,6 +591,31 @@ const AdminGamesPage: React.FC = () => {
               </div>
             </div>
 
+            {/* Configurar Adivinhe o Número */}
+            <div className="mt-12">
+              <h3 className="text-lg font-semibold flex items-center gap-2 mb-4"><Zap size={20}/>Configurar "Adivinhe o Número"</h3>
+              <div className="flex items-center gap-3">
+                <input
+                  type="number"
+                  min={1}
+                  max={100}
+                  value={secretInput}
+                  onChange={e => setSecretInput(e.target.value)}
+                  className="w-32 px-3 py-2 border rounded-lg"
+                />
+                <button
+                  onClick={saveSecretNumber}
+                  disabled={savingSecret}
+                  className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-semibold"
+                >
+                  {savingSecret ? 'Salvando...' : 'Salvar Número'}
+                </button>
+              </div>
+              {currentSecret !== null && (
+                <p className="text-sm text-gray-600 mt-2">Número ativo: <span className="font-semibold">{currentSecret}</span></p>
+              )}
+            </div>
+
             <div>
               <h2 className="text-xl font-semibold mb-4">Controle de Acesso aos Jogos</h2>
               <div className="bg-white rounded-xl shadow-lg p-6">
@@ -605,6 +705,17 @@ const AdminGamesPage: React.FC = () => {
                   )}
                 </div>
               </div>
+            </div>
+
+            {/* Danger Zone: Limpar Hall da Fama */}
+            <div className="mt-12 border-t pt-8">
+              <h3 className="text-lg font-semibold text-red-600 flex items-center gap-2 mb-4"><AlertTriangle size={20}/>Danger Zone</h3>
+              <button
+                onClick={() => setShowWinnersModal(true)}
+                className="bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-lg font-semibold"
+              >
+                Excluir TODOS os registros do Hall da Fama
+              </button>
             </div>
           </div>
 
@@ -823,6 +934,23 @@ const AdminGamesPage: React.FC = () => {
                         </>
                       )}
                     </button>
+                  </div>
+                </div>
+              </motion.div>
+            </div>
+          )}
+
+          {/* Modal confirmação wipe winners */}
+          {showWinnersModal && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+              <motion.div className="bg-white rounded-xl p-6 max-w-md w-full" initial={{scale:0.9,opacity:0}} animate={{scale:1,opacity:1}}>
+                <div className="text-center">
+                  <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4"/>
+                  <h4 className="text-xl font-bold mb-2">Confirmar limpeza do Hall da Fama?</h4>
+                  <p className="text-gray-700 mb-6">Esta ação irá remover permanentemente todos os registros de ganhadores. Não poderá ser desfeita.</p>
+                  <div className="flex justify-center gap-3">
+                    <button className="px-4 py-2 rounded-lg border" onClick={()=>setShowWinnersModal(false)} disabled={isWiping}>Cancelar</button>
+                    <button className="px-4 py-2 rounded-lg bg-red-600 text-white" onClick={wipeWinners} disabled={isWiping}>{isWiping ? 'Excluindo...' : 'Confirmar'}</button>
                   </div>
                 </div>
               </motion.div>

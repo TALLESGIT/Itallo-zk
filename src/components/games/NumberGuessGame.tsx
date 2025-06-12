@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Zap, Trophy, TrendingUp, TrendingDown, Target } from 'lucide-react';
+import { ArrowLeft, Zap, Trophy, TrendingUp, TrendingDown, Target, AlertCircle } from 'lucide-react';
 import { toast } from 'react-toastify';
+import { supabase } from '../../lib/supabase';
 
 interface NumberGuessGameProps {
   onBack: () => void;
@@ -14,18 +15,84 @@ const NumberGuessGame: React.FC<NumberGuessGameProps> = ({ onBack }) => {
   const [gameStatus, setGameStatus] = useState<'playing' | 'won' | 'lost'>('playing');
   const [range, setRange] = useState({ min: 1, max: 100 });
 
-  useEffect(() => {
-    startNewGame();
-  }, []);
+  // === Tentativas e cooldown ===
+  const MAX_ATTEMPTS = 3;
+  const COOLDOWN_MS = 15 * 60 * 1000; // 15 minutos
+  const [showTimeoutModal, setShowTimeoutModal] = useState(false);
+  const [cooldownEnd, setCooldownEnd] = useState<number | null>(null);
+  const [cooldownRemaining, setCooldownRemaining] = useState(0);
 
-  const startNewGame = () => {
-    const newNumber = Math.floor(Math.random() * 100) + 1;
-    setSecretNumber(newNumber);
+  // Carregar cooldown salvo
+  useEffect(() => {
+    const stored = localStorage.getItem('number_guess_cooldown_end');
+    if (stored) {
+      const end = parseInt(stored, 10);
+      if (!isNaN(end) && end > Date.now()) {
+        setCooldownEnd(end);
+        setCooldownRemaining(end - Date.now());
+      }
+    }
+
+    const interval = setInterval(() => {
+      if (cooldownEnd) {
+        const remaining = cooldownEnd - Date.now();
+        if (remaining <= 0) {
+          setCooldownEnd(null);
+          localStorage.removeItem('number_guess_cooldown_end');
+        }
+        setCooldownRemaining(Math.max(0, remaining));
+      }
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [cooldownEnd]);
+
+  const fetchSecretAndStart = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('number_guess_config')
+        .select('secret')
+        .order('id', { ascending: false })
+        .limit(1)
+        .single();
+      if (error) throw error;
+      if (data) {
+        setSecretNumber(data.secret);
+      } else {
+        toast.error('Jogo indisponível: número não configurado.');
+        return;
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error('Erro ao carregar número secreto.');
+      return;
+    }
+
     setAttempts([]);
     setGameStatus('playing');
     setGuess('');
     setRange({ min: 1, max: 100 });
   };
+
+  const startNewGame = () => {
+    fetchSecretAndStart();
+  };
+
+  useEffect(() => {
+    fetchSecretAndStart();
+
+    const channel = supabase
+      .channel('public:number_guess_config')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'number_guess_config' }, payload => {
+        if (payload.new?.secret) {
+          setSecretNumber(payload.new.secret);
+        }
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
 
   const getHint = (guessNum: number, secret: number): string => {
     const diff = Math.abs(guessNum - secret);
@@ -66,9 +133,15 @@ const NumberGuessGame: React.FC<NumberGuessGameProps> = ({ onBack }) => {
     if (guessNum === secretNumber) {
       setGameStatus('won');
       toast.success(`Parabéns! Você descobriu o número em ${newAttempts.length} tentativa${newAttempts.length > 1 ? 's' : ''}!`);
-    } else if (newAttempts.length >= 10) {
+    } else if (newAttempts.length >= MAX_ATTEMPTS) {
       setGameStatus('lost');
       toast.error(`Que pena! O número era ${secretNumber}.`);
+
+      // Set cooldown if lost
+      const end = Date.now() + COOLDOWN_MS;
+      setCooldownEnd(end);
+      localStorage.setItem('number_guess_cooldown_end', end.toString());
+      setShowTimeoutModal(true);
     }
 
     setGuess('');
@@ -104,7 +177,7 @@ const NumberGuessGame: React.FC<NumberGuessGameProps> = ({ onBack }) => {
               <div className="text-xs sm:text-sm text-gray-600">Intervalo</div>
             </div>
             <div>
-              <div className="text-lg sm:text-2xl font-bold text-primary">{attempts.length}/10</div>
+              <div className="text-lg sm:text-2xl font-bold text-primary">{attempts.length}/{MAX_ATTEMPTS}</div>
               <div className="text-xs sm:text-sm text-gray-600">Tentativas</div>
             </div>
             <div>
@@ -134,11 +207,11 @@ const NumberGuessGame: React.FC<NumberGuessGameProps> = ({ onBack }) => {
                   placeholder={gameStatus === 'playing' ? "Digite um número..." : "Jogo finalizado"}
                   min={range.min}
                   max={range.max}
-                  disabled={gameStatus !== 'playing'}
+                  disabled={gameStatus !== 'playing' || (cooldownEnd && cooldownEnd > Date.now()) || secretNumber === 0}
                 />
                 <button
                   onClick={handleGuess}
-                  disabled={gameStatus !== 'playing' || !guess.trim()}
+                  disabled={gameStatus !== 'playing' || !guess.trim() || (cooldownEnd && cooldownEnd > Date.now()) || secretNumber === 0}
                   className={`w-full sm:w-auto px-6 py-3 sm:py-2 rounded-lg transition-colors duration-200 font-medium ${
                     gameStatus === 'playing' && guess.trim()
                       ? 'bg-primary text-white hover:bg-primary/80'
@@ -221,7 +294,10 @@ const NumberGuessGame: React.FC<NumberGuessGameProps> = ({ onBack }) => {
                 </div>
               )}
               <button
-                onClick={startNewGame}
+                onClick={() => {
+                  setShowTimeoutModal(false);
+                  startNewGame();
+                }}
                 className="w-full sm:w-auto px-6 py-3 sm:py-2 bg-primary text-white rounded-lg hover:bg-primary/80 transition-colors font-medium"
               >
                 Jogar Novamente
@@ -247,7 +323,7 @@ const NumberGuessGame: React.FC<NumberGuessGameProps> = ({ onBack }) => {
               <span className="text-gray-700">Alvo: Você acertou!</span>
             </li>
             <li className="mt-2 sm:mt-3 text-gray-700">
-              • Você tem 10 tentativas para descobrir o número
+              • Você tem {MAX_ATTEMPTS} tentativas para descobrir o número
             </li>
             <li className="text-gray-700">
               • Use as dicas para estreitar o intervalo de busca
@@ -257,6 +333,23 @@ const NumberGuessGame: React.FC<NumberGuessGameProps> = ({ onBack }) => {
             </li>
           </ul>
         </div>
+
+        {/* Timeout Modal */}
+        {showTimeoutModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <motion.div className="bg-white rounded-xl p-6 max-w-md w-full text-center" initial={{scale:0.9,opacity:0}} animate={{scale:1,opacity:1}}>
+              <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+              <h3 className="text-2xl font-bold text-gray-800 mb-2">Tentativas esgotadas</h3>
+              <p className="text-gray-600 mb-6">Tente novamente em alguns minutos!</p>
+              <button
+                onClick={() => setShowTimeoutModal(false)}
+                className="bg-primary hover:bg-primary/80 text-white px-6 py-2 rounded-lg font-semibold"
+              >
+                Entendi
+              </button>
+            </motion.div>
+          </div>
+        )}
       </div>
     </div>
   );

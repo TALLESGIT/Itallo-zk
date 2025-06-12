@@ -45,7 +45,7 @@ const Banner: React.FC<BannerProps> = ({ url, imageUrl, onClick }) => {
         <div className="relative z-10 flex justify-center items-center w-full h-full">
           <div className="backdrop-blur-sm bg-white/30 border border-white/40 rounded-xl px-3 py-2 md:px-6 md:py-3 shadow-lg max-w-lg mx-auto text-center">
             <span className="text-base md:text-xl font-bold text-blue-900 drop-shadow-lg">
-              🎉 Clique aqui, a cada R$ 7,00 em compras na ação você garante mais 5 números para o sorteio da TV de 43°!
+              🎉 Clique aqui, a cada R$ 5,00 em compras na ação você garante mais 5 números para o sorteio da TV de 43°!
             </span>
           </div>
         </div>

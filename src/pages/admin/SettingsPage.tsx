@@ -355,7 +355,7 @@ const SettingsPage: React.FC = () => {
                 <dl className="space-y-4">
                   <div className="flex justify-between py-3 border-b border-gray-100">
                     <dt className="text-gray-600">Versão</dt>
-                    <dd className="font-medium">1.0.0</dd>
+                    <dd className="font-medium">1.0.1</dd>
                   </div>
                   <div className="flex justify-between py-3 border-b border-gray-100">
                     <dt className="text-gray-600">Ambiente</dt>

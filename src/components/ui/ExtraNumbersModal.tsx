@@ -54,7 +54,7 @@ const ExtraNumbersModal: React.FC<ExtraNumbersModalProps> = ({ onClose, userWhat
   };
 
   const calculateExtraNumbers = (amount: number) => {
-    return Math.floor(amount / 7) * 5;
+    return Math.floor(amount / 5) * 5;
   };
 
   const validateForm = (): boolean => {
@@ -62,8 +62,8 @@ const ExtraNumbersModal: React.FC<ExtraNumbersModalProps> = ({ onClose, userWhat
     let isValid = true;
 
     const amount = parseFloat(purchaseAmount);
-    if (!amount || amount < 7) {
-      newErrors.amount = 'O valor mínimo da compra é R$ 7,00';
+    if (!amount || amount < 5) {
+      newErrors.amount = 'O valor mínimo da compra é R$ 5,00';
       isValid = false;
     }
 
@@ -230,7 +230,7 @@ const ExtraNumbersModal: React.FC<ExtraNumbersModalProps> = ({ onClose, userWhat
 
               <div className="bg-yellow-50 border border-yellow-100 rounded-xl p-4 mb-6">
                 <p className="text-yellow-800 text-sm">
-                  A cada R$ 7,00 em compras na ZK Variedades, você ganha +5 números para o sorteio!
+                  A cada R$ 5,00 em compras na ZK Variedades, você ganha +5 números para o sorteio!
                 </p>
               </div>
 
@@ -261,9 +261,9 @@ const ExtraNumbersModal: React.FC<ExtraNumbersModalProps> = ({ onClose, userWhat
                     <input
                       type="number"
                       step="0.01"
-                      min="7"
+                      min="5"
                       className="form-input rounded-xl"
-                      placeholder="Ex: 7.00"
+                      placeholder="Ex: 5.00"
                       value={purchaseAmount}
                       onChange={(e) => {
                         setPurchaseAmount(e.target.value);
@@ -273,7 +273,7 @@ const ExtraNumbersModal: React.FC<ExtraNumbersModalProps> = ({ onClose, userWhat
                     {errors.amount && (
                       <div className="form-error">{errors.amount}</div>
                     )}
-                    {purchaseAmount && parseFloat(purchaseAmount) >= 7 && (
+                    {purchaseAmount && parseFloat(purchaseAmount) >= 5 && (
                       <div className="mt-2 text-sm text-green-600">
                         Você receberá +{calculateExtraNumbers(parseFloat(purchaseAmount))} números extras
                       </div>
