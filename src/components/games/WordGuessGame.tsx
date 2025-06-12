@@ -133,23 +133,25 @@ const WordGuessGame: React.FC<WordGuessGameProps> = ({ onBack }) => {
     <div className="container mx-auto px-2 sm:px-4 py-4 sm:py-8">
       <div className="max-w-2xl mx-auto">
         {/* Header */}
-        <div className="flex items-center justify-between mb-4 sm:mb-8">
-          <button
-            onClick={onBack}
-            className="inline-flex items-center text-primary hover:text-primary/80 text-sm sm:text-base"
-          >
-            <ArrowLeft size={18} className="mr-1 sm:mr-2" />
-            <span className="hidden xs:inline">Voltar aos Jogos</span>
-            <span className="xs:hidden">Voltar</span>
-          </button>
-          <div className="text-center flex-1 mx-2">
-            <h1 className="text-lg sm:text-2xl font-bold text-gray-800 flex items-center justify-center">
-              <Brain className="mr-1 sm:mr-2 text-primary" size={20} />
+        <div className="mb-4 sm:mb-8">
+          <div className="flex items-center justify-between mb-2">
+            <button
+              onClick={onBack}
+              className="inline-flex items-center text-primary hover:text-primary/80 text-sm sm:text-base"
+            >
+              <ArrowLeft size={18} className="mr-1 sm:mr-2" />
+              <span className="hidden xs:inline">Voltar aos Jogos</span>
+              <span className="xs:hidden">Voltar</span>
+            </button>
+            <div className="w-16 sm:w-24"></div>
+          </div>
+          <div className="text-center">
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-800 flex items-center justify-center">
+              <Brain className="mr-2 text-primary" size={24} />
               <span className="hidden sm:inline">Descubra a Palavra</span>
-              <span className="sm:hidden">Palavra</span>
+              <span className="sm:hidden">Descubra a Palavra</span>
             </h1>
           </div>
-          <div className="w-16 sm:w-24"></div>
         </div>
 
         {/* Game Info */}
@@ -219,7 +221,7 @@ const WordGuessGame: React.FC<WordGuessGameProps> = ({ onBack }) => {
             </div>
           </div>
 
-          {/* Input Area */}
+          {/* Input Area - Sempre visível quando jogando */}
           {gameStatus === 'playing' && (
             <div className="space-y-3 sm:space-y-4">
               <div>
@@ -237,10 +239,12 @@ const WordGuessGame: React.FC<WordGuessGameProps> = ({ onBack }) => {
                     maxLength={20}
                     autoComplete="off"
                     autoCapitalize="characters"
+                    disabled={gameStatus !== 'playing'}
                   />
                   <button
                     onClick={handleGuess}
-                    className="w-full sm:w-auto px-6 py-3 sm:py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors font-medium"
+                    disabled={gameStatus !== 'playing' || !guess.trim()}
+                    className="w-full sm:w-auto px-6 py-3 sm:py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Tentar
                   </button>
