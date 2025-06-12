@@ -343,7 +343,7 @@ const AdminGamesPage: React.FC = () => {
                     </p>
                     <button
                       onClick={openAddModal}
-                      className="inline-flex items-center px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/80 transition-colors"
+                      className="inline-flex items-center px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors"
                     >
                       <Plus size={16} className="mr-2" />
                       Nova Palavra
