@@ -388,19 +388,24 @@ const WordSearchGame: React.FC = () => {
               <div 
                 className="grid grid-cols-12 gap-1 select-none"
                 onMouseLeave={() => !isMobile && setSelectedCells([])}
+                style={{ 
+                  backfaceVisibility: 'hidden',
+                  transform: 'translateZ(0)',
+                  willChange: 'auto'
+                }}
               >
                 {grid.map((row, rowIndex) =>
                   row.map((letter, colIndex) => (
-                    <motion.div
+                    <div
                       key={`${rowIndex}-${colIndex}`}
                       className={`
                         w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center
                         text-sm sm:text-base font-bold cursor-pointer
-                        border-2 transition-all duration-200 select-none
+                        border-2 transition-colors duration-100 select-none
                         ${isCellSelected(rowIndex, colIndex) 
-                          ? 'bg-blue-300 border-blue-500 text-blue-900 shadow-lg transform scale-105' 
+                          ? 'bg-blue-300 border-blue-500 text-blue-900' 
                           : isCellFirstClick(rowIndex, colIndex)
-                          ? 'bg-yellow-300 border-yellow-500 text-yellow-900 shadow-md animate-pulse'
+                          ? 'bg-yellow-300 border-yellow-500 text-yellow-900'
                           : isCellInFoundWord(rowIndex, colIndex)
                           ? 'bg-green-200 border-green-400 text-green-800'
                           : 'bg-gray-50 border-gray-200 hover:bg-gray-100 hover:border-gray-300'
@@ -411,11 +416,13 @@ const WordSearchGame: React.FC = () => {
                       onMouseEnter={() => handleCellMouseEnter(rowIndex, colIndex)}
                       onMouseUp={handleCellMouseUp}
                       onTouchStart={() => handleCellClick(rowIndex, colIndex)}
-                      whileHover={{ scale: isMobile ? 1 : 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                    >
-                      {letter}
-                    </motion.div>
+                      style={{
+                        backfaceVisibility: 'hidden',
+                        transform: 'translateZ(0)'
+                      }}
+                                          >
+                        {letter}
+                    </div>
                   ))
                 )}
               </div>
