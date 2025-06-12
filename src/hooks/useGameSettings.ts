@@ -66,14 +66,17 @@ export const useGameSettings = () => {
   const updateGameSetting = async (gameName: string, isEnabled: boolean) => {
     try {
       setError(null);
+      console.log('Tentando atualizar jogo:', gameName, 'para:', isEnabled);
 
       // Try to update in Supabase first
-      const { error: supabaseError } = await supabase
+      const { data, error: supabaseError } = await supabase
         .from('game_settings')
         .update({ is_enabled: isEnabled, updated_at: new Date().toISOString() })
-        .eq('game_name', gameName);
+        .eq('game_name', gameName)
+        .select();
 
       if (supabaseError) {
+        console.error('Erro do Supabase:', supabaseError);
         console.warn('Supabase not available, using localStorage:', supabaseError.message);
         // Fallback to localStorage
         const updatedSettings = gameSettings.map(setting =>
@@ -84,6 +87,7 @@ export const useGameSettings = () => {
         setGameSettings(updatedSettings);
         localStorage.setItem('gameSettings', JSON.stringify(updatedSettings));
       } else {
+        console.log('Atualização bem-sucedida:', data);
         // Refresh from Supabase
         await fetchGameSettings();
       }
