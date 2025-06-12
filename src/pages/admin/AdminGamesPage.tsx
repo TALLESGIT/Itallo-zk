@@ -131,34 +131,76 @@ const AdminGamesPage: React.FC = () => {
   };
 
   const confirmDeleteWord = async () => {
-    if (!wordToDelete) return;
+    if (!wordToDelete) {
+      console.log('Nenhuma palavra selecionada para exclusão');
+      return;
+    }
+
+    console.log('=== INICIANDO EXCLUSÃO ===');
+    console.log('Palavra a ser excluída:', JSON.stringify(wordToDelete, null, 2));
 
     setIsDeleting(true);
     try {
-      // Determina qual tabela usar baseado na presença do campo 'hint' ou 'category'
-      const tableName = wordToDelete.hint !== undefined ? 'game_words' : 'word_search_words';
+      // Verifica se o usuário está autenticado
+      const { data: { user } } = await supabase.auth.getUser();
+      console.log('Usuário autenticado:', user?.email, 'Role:', user?.user_metadata?.role);
       
-      const { error } = await supabase
+      // Determina qual tabela usar
+      let tableName: string;
+      
+      // Verifica se tem campo 'hint' (game_words) ou 'category' (word_search_words)
+      if (wordToDelete.hasOwnProperty('hint')) {
+        tableName = 'game_words';
+        console.log('Detectado como palavra do jogo "Descubra a Palavra"');
+      } else if (wordToDelete.hasOwnProperty('category')) {
+        tableName = 'word_search_words';
+        console.log('Detectado como palavra do "Caça Palavras"');
+      } else {
+        console.error('Não foi possível determinar o tipo da palavra:', Object.keys(wordToDelete));
+        throw new Error('Tipo de palavra não identificado');
+      }
+      
+      console.log(`Tentando excluir da tabela: ${tableName}, ID: ${wordToDelete.id}`);
+      
+      // Executa a exclusão
+      const { error, data } = await supabase
         .from(tableName)
         .delete()
-        .eq('id', wordToDelete.id);
+        .eq('id', wordToDelete.id)
+        .select();
 
-      if (error) throw error;
+      console.log('Resposta da exclusão:', { error, data });
+
+      if (error) {
+        console.error('Erro detalhado do Supabase:', error);
+        throw error;
+      }
+      
+      if (!data || data.length === 0) {
+        console.warn('Nenhum registro foi excluído. Pode não existir ou não ter permissão.');
+        throw new Error('Nenhum registro foi excluído');
+      }
+      
+      console.log('Exclusão bem-sucedida:', data);
       toast.success('Palavra excluída com sucesso!');
       
       // Atualiza a lista apropriada
       if (tableName === 'game_words') {
+        console.log('Atualizando lista de palavras do jogo');
         fetchGameWords();
       } else {
+        console.log('Atualizando lista de palavras do caça palavras');
         fetchWordSearchWords();
       }
       
       closeDeleteModal();
     } catch (error) {
-      console.error('Erro ao excluir palavra:', error);
-      toast.error('Erro ao excluir palavra.');
+      console.error('=== ERRO NA EXCLUSÃO ===');
+      console.error('Erro completo:', error);
+      toast.error(`Erro ao excluir palavra: ${error.message || 'Erro desconhecido'}`);
     } finally {
       setIsDeleting(false);
+      console.log('=== FIM DA EXCLUSÃO ===');
     }
   };
 
