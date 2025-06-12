@@ -145,6 +145,12 @@ const AdminGamesPage: React.FC = () => {
       const { data: { user } } = await supabase.auth.getUser();
       console.log('Usuário autenticado:', user?.email, 'Role:', user?.user_metadata?.role);
       
+      // Verifica se o usuário tem permissão de admin
+      if (!user?.user_metadata?.role || user.user_metadata.role !== 'admin') {
+        console.error('Usuário sem permissão de admin');
+        throw new Error('Você não tem permissão para excluir palavras. Faça logout e login novamente se você é admin.');
+      }
+      
       // Determina qual tabela usar
       let tableName: string;
       
@@ -286,10 +292,41 @@ const AdminGamesPage: React.FC = () => {
     setShowSearchWordModal(true);
   };
 
+  const refreshUserSession = async () => {
+    try {
+      const { data, error } = await supabase.auth.refreshSession();
+      if (error) throw error;
+      
+      console.log('Sessão atualizada:', data.user?.user_metadata);
+      toast.success('Sessão atualizada! Tente excluir novamente.');
+    } catch (error) {
+      console.error('Erro ao atualizar sessão:', error);
+      toast.error('Erro ao atualizar sessão. Faça logout e login novamente.');
+    }
+  };
+
   return (
     <AdminLayout title="Brincadeiras">
       <div className="flex justify-center">
         <div className="w-full max-w-4xl">
+          {/* Botão de Debug para Atualizar Sessão */}
+          <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-medium text-yellow-800">Debug: Problemas com Exclusão?</h3>
+                <p className="text-xs text-yellow-700 mt-1">
+                  Se não conseguir excluir palavras, clique para atualizar suas permissões.
+                </p>
+              </div>
+              <button
+                onClick={refreshUserSession}
+                className="px-3 py-1 bg-yellow-500 text-white text-sm rounded hover:bg-yellow-600 transition-colors"
+              >
+                Atualizar Sessão
+              </button>
+            </div>
+          </div>
+          
           <div className="space-y-8">
             <div>
               <h2 className="text-xl font-semibold mb-4">Configurações de Jogo</h2>
