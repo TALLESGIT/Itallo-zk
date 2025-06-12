@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Search, RotateCcw, Trophy, Clock, Target, CheckCircle } from 'lucide-react';
 import { useGameWinners } from '../../hooks/useGameWinners';
+import { supabase } from '../../lib/supabase';
 
 interface Position {
   row: number;
@@ -31,12 +32,9 @@ const WordSearchGame: React.FC = () => {
   const [firstClick, setFirstClick] = useState<Position | null>(null);
   const [isMobile, setIsMobile] = useState(false);
 
-  // Palavras para encontrar
-  const wordsToFind = [
-    'JAVASCRIPT', 'REACT', 'TYPESCRIPT', 'HTML', 'CSS',
-    'NODE', 'PYTHON', 'JAVA', 'PHP', 'MYSQL',
-    'GITHUB', 'VSCODE', 'LINUX', 'WINDOWS', 'MOBILE'
-  ];
+  // Palavras para encontrar (carregadas do banco)
+  const [wordsToFind, setWordsToFind] = useState<string[]>([]);
+  const [loadingWords, setLoadingWords] = useState(true);
 
   // Gerar grid aleatório com palavras escondidas
   const generateGrid = useCallback(() => {
@@ -130,10 +128,52 @@ const WordSearchGame: React.FC = () => {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
+  // Carregar palavras do banco de dados
+  const fetchWords = async () => {
+    try {
+      setLoadingWords(true);
+      const { data, error } = await supabase
+        .from('word_search_words')
+        .select('word')
+        .eq('is_active', true)
+        .limit(15);
+
+      if (error) throw error;
+
+      if (data && data.length > 0) {
+        const words = data.map(item => item.word.toUpperCase());
+        setWordsToFind(words);
+      } else {
+        // Fallback para palavras padrão se não houver no banco
+        setWordsToFind([
+          'JAVASCRIPT', 'REACT', 'TYPESCRIPT', 'HTML', 'CSS',
+          'NODE', 'PYTHON', 'JAVA', 'PHP', 'MYSQL',
+          'GITHUB', 'VSCODE', 'LINUX', 'WINDOWS', 'MOBILE'
+        ]);
+      }
+    } catch (error) {
+      console.error('Erro ao carregar palavras:', error);
+      // Fallback para palavras padrão em caso de erro
+      setWordsToFind([
+        'JAVASCRIPT', 'REACT', 'TYPESCRIPT', 'HTML', 'CSS',
+        'NODE', 'PYTHON', 'JAVA', 'PHP', 'MYSQL',
+        'GITHUB', 'VSCODE', 'LINUX', 'WINDOWS', 'MOBILE'
+      ]);
+    } finally {
+      setLoadingWords(false);
+    }
+  };
+
   // Inicializar jogo
   useEffect(() => {
-    generateGrid();
-  }, [generateGrid]);
+    fetchWords();
+  }, []);
+
+  useEffect(() => {
+    if (wordsToFind.length > 0) {
+      generateGrid();
+    }
+  }, [wordsToFind, generateGrid]);
 
   const startGame = () => {
     setGameStarted(true);
@@ -352,24 +392,35 @@ const WordSearchGame: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         {/* Game Grid */}
         <div className="lg:col-span-3">
-          {!gameStarted ? (
+          {loadingWords ? (
+            <div className="text-center py-12">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500 mx-auto mb-4"></div>
+              <h3 className="text-xl font-semibold text-gray-700 mb-4">
+                Carregando palavras...
+              </h3>
+              <p className="text-gray-600">
+                Preparando o jogo para você!
+              </p>
+            </div>
+          ) : !gameStarted ? (
             <div className="text-center py-12">
               <Search className="w-16 h-16 text-purple-400 mx-auto mb-4" />
               <h3 className="text-xl font-semibold text-gray-700 mb-4">
                 Pronto para o desafio?
               </h3>
               <p className="text-gray-600 mb-6">
-                Encontre palavras relacionadas à programação escondidas no grid!
+                Encontre {wordsToFind.length} palavras escondidas no grid!
               </p>
               <button
                 onClick={startGame}
-                className="bg-purple-500 hover:bg-purple-600 text-white px-8 py-3 rounded-lg font-semibold transition-colors"
+                disabled={wordsToFind.length === 0}
+                className="bg-purple-500 hover:bg-purple-600 disabled:bg-gray-400 text-white px-8 py-3 rounded-lg font-semibold transition-colors"
               >
                 Iniciar Jogo
               </button>
             </div>
           ) : (
-            <div className="bg-white rounded-xl shadow-lg p-4">
+            <div className="bg-white rounded-xl shadow-lg p-4 sm:p-6">
               {/* Mobile controls */}
               {isMobile && firstClick && (
                 <div className="mb-4 text-center">
@@ -385,46 +436,64 @@ const WordSearchGame: React.FC = () => {
                 </div>
               )}
 
-              <div 
-                className="grid grid-cols-12 gap-1 select-none"
-                onMouseLeave={() => !isMobile && setSelectedCells([])}
-                style={{ 
-                  backfaceVisibility: 'hidden',
-                  transform: 'translateZ(0)',
-                  willChange: 'auto'
-                }}
-              >
+              <div className="flex justify-center">
+                <div 
+                  className="grid grid-cols-12 gap-1 sm:gap-2 select-none"
+                  onMouseLeave={() => !isMobile && setSelectedCells([])}
+                  style={{ 
+                    backfaceVisibility: 'hidden',
+                    transform: 'translateZ(0)',
+                    willChange: 'auto',
+                    userSelect: 'none',
+                    WebkitUserSelect: 'none',
+                    WebkitTouchCallout: 'none'
+                  }}
+                >
                 {grid.map((row, rowIndex) =>
                   row.map((letter, colIndex) => (
                     <div
                       key={`${rowIndex}-${colIndex}`}
                       className={`
-                        w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center
-                        text-sm sm:text-base font-bold cursor-pointer
-                        border-2 transition-colors duration-100 select-none
+                        w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 flex items-center justify-center
+                        text-sm sm:text-base md:text-lg font-bold cursor-pointer
+                        border-2 transition-colors duration-150 select-none rounded-md
                         ${isCellSelected(rowIndex, colIndex) 
-                          ? 'bg-blue-300 border-blue-500 text-blue-900' 
+                          ? 'bg-blue-300 border-blue-500 text-blue-900 shadow-sm' 
                           : isCellFirstClick(rowIndex, colIndex)
-                          ? 'bg-yellow-300 border-yellow-500 text-yellow-900'
+                          ? 'bg-yellow-300 border-yellow-500 text-yellow-900 shadow-sm'
                           : isCellInFoundWord(rowIndex, colIndex)
                           ? 'bg-green-200 border-green-400 text-green-800'
                           : 'bg-gray-50 border-gray-200 hover:bg-gray-100 hover:border-gray-300'
                         }
                       `}
-                      onClick={() => handleCellClick(rowIndex, colIndex)}
-                      onMouseDown={() => handleCellMouseDown(rowIndex, colIndex)}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        handleCellClick(rowIndex, colIndex);
+                      }}
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        handleCellMouseDown(rowIndex, colIndex);
+                      }}
                       onMouseEnter={() => handleCellMouseEnter(rowIndex, colIndex)}
                       onMouseUp={handleCellMouseUp}
-                      onTouchStart={() => handleCellClick(rowIndex, colIndex)}
+                      onTouchStart={(e) => {
+                        e.preventDefault();
+                        handleCellClick(rowIndex, colIndex);
+                      }}
                       style={{
                         backfaceVisibility: 'hidden',
-                        transform: 'translateZ(0)'
+                        transform: 'translateZ(0)',
+                        userSelect: 'none',
+                        WebkitUserSelect: 'none',
+                        WebkitTouchCallout: 'none',
+                        WebkitTapHighlightColor: 'transparent'
                       }}
                                           >
                         {letter}
                     </div>
                   ))
                 )}
+                </div>
               </div>
             </div>
           )}

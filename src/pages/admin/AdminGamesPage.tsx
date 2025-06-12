@@ -9,15 +9,20 @@ import { useGameSettings } from '../../hooks/useGameSettings';
 const AdminGamesPage: React.FC = () => {
   const { gameSettings, updateGameSetting, loading: gameSettingsLoading } = useGameSettings();
   const [gameWords, setGameWords] = useState<any[]>([]);
+  const [wordSearchWords, setWordSearchWords] = useState<any[]>([]);
   const [newWord, setNewWord] = useState({ word: '', hint: '' });
+  const [newSearchWord, setNewSearchWord] = useState({ word: '', category: 'geral' });
   const [editingWord, setEditingWord] = useState<any>(null);
+  const [editingSearchWord, setEditingSearchWord] = useState<any>(null);
   const [showWordModal, setShowWordModal] = useState(false);
+  const [showSearchWordModal, setShowSearchWordModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [wordToDelete, setWordToDelete] = useState<any>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     fetchGameWords();
+    fetchWordSearchWords();
   }, []);
 
   const fetchGameWords = async () => {
@@ -32,6 +37,21 @@ const AdminGamesPage: React.FC = () => {
     } catch (error) {
       console.error('Erro ao buscar palavras:', error);
       toast.error('Erro ao carregar palavras do jogo.');
+    }
+  };
+
+  const fetchWordSearchWords = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('word_search_words')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setWordSearchWords(data || []);
+    } catch (error) {
+      console.error('Erro ao buscar palavras do caça palavras:', error);
+      toast.error('Erro ao carregar palavras do caça palavras.');
     }
   };
 
@@ -115,18 +135,29 @@ const AdminGamesPage: React.FC = () => {
 
     setIsDeleting(true);
     try {
+      // Determina qual tabela usar baseado na presença do campo 'hint' ou 'category'
+      const tableName = wordToDelete.hint !== undefined ? 'game_words' : 'word_search_words';
+      
       const { error } = await supabase
-        .from('game_words')
+        .from(tableName)
         .delete()
         .eq('id', wordToDelete.id);
 
       if (error) throw error;
       toast.success('Palavra excluída com sucesso!');
-      fetchGameWords();
+      
+      // Atualiza a lista apropriada
+      if (tableName === 'game_words') {
+        fetchGameWords();
+      } else {
+        fetchWordSearchWords();
+      }
+      
       closeDeleteModal();
     } catch (error) {
       console.error('Erro ao excluir palavra:', error);
       toast.error('Erro ao excluir palavra.');
+    } finally {
       setIsDeleting(false);
     }
   };
@@ -141,6 +172,76 @@ const AdminGamesPage: React.FC = () => {
     setEditingWord(null);
     setNewWord({ word: '', hint: '' });
     setShowWordModal(true);
+  };
+
+  // Funções para Caça Palavras
+  const handleSaveSearchWord = async () => {
+    if (!newSearchWord.word.trim()) {
+      toast.error('A palavra é obrigatória!');
+      return;
+    }
+
+    try {
+      if (editingSearchWord) {
+        const { error } = await supabase
+          .from('word_search_words')
+          .update({
+            word: newSearchWord.word.trim().toUpperCase(),
+            category: newSearchWord.category.trim() || 'geral',
+          })
+          .eq('id', editingSearchWord.id);
+
+        if (error) throw error;
+        toast.success('Palavra do caça palavras atualizada com sucesso!');
+      } else {
+        const { error } = await supabase
+          .from('word_search_words')
+          .insert({
+            word: newSearchWord.word.trim().toUpperCase(),
+            category: newSearchWord.category.trim() || 'geral',
+            is_active: true,
+          });
+
+        if (error) throw error;
+        toast.success('Palavra do caça palavras adicionada com sucesso!');
+      }
+
+      setNewSearchWord({ word: '', category: 'geral' });
+      setEditingSearchWord(null);
+      setShowSearchWordModal(false);
+      fetchWordSearchWords();
+    } catch (error) {
+      console.error('Erro ao salvar palavra do caça palavras:', error);
+      toast.error('Erro ao salvar palavra do caça palavras.');
+    }
+  };
+
+  const handleToggleSearchWord = async (wordId: number, isActive: boolean) => {
+    try {
+      const { error } = await supabase
+        .from('word_search_words')
+        .update({ is_active: !isActive })
+        .eq('id', wordId);
+
+      if (error) throw error;
+      toast.success(`Palavra ${!isActive ? 'ativada' : 'desativada'} com sucesso!`);
+      fetchWordSearchWords();
+    } catch (error) {
+      console.error('Erro ao alterar status da palavra:', error);
+      toast.error('Erro ao alterar status da palavra.');
+    }
+  };
+
+  const openEditSearchWordModal = (word: any) => {
+    setEditingSearchWord(word);
+    setNewSearchWord({ word: word.word, category: word.category || 'geral' });
+    setShowSearchWordModal(true);
+  };
+
+  const openAddSearchWordModal = () => {
+    setEditingSearchWord(null);
+    setNewSearchWord({ word: '', category: 'geral' });
+    setShowSearchWordModal(true);
   };
 
   return (
@@ -230,6 +331,104 @@ const AdminGamesPage: React.FC = () => {
                   ) : (
                     <div className="text-center py-8 text-gray-500">
                       <Brain size={48} className="mx-auto mb-4 text-gray-300" />
+                      <p>Nenhuma palavra cadastrada ainda.</p>
+                      <p className="text-sm">Adicione palavras para o jogo funcionar!</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Palavras do Caça Palavras */}
+            <div>
+              <h2 className="text-xl font-semibold mb-4">Palavras do Caça Palavras</h2>
+              <div className="bg-white rounded-xl shadow-lg p-6">
+                <div className="flex items-center mb-6">
+                  <Search className="text-purple-500 mr-3" size={24} />
+                  <h2 className="text-xl font-bold text-gray-800">Gerenciar Palavras</h2>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center">
+                    <p className="text-gray-600">
+                      Gerencie as palavras do jogo "Caça Palavras"
+                    </p>
+                    <button
+                      onClick={openAddSearchWordModal}
+                      className="inline-flex items-center px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors"
+                    >
+                      <Plus size={16} className="mr-2" />
+                      Nova Palavra
+                    </button>
+                  </div>
+
+                  {wordSearchWords.length > 0 ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                      {wordSearchWords.map((word) => (
+                        <div
+                          key={word.id}
+                          className={`p-3 rounded-lg border-2 transition-all ${
+                            word.is_active 
+                              ? 'border-green-300 bg-green-50' 
+                              : 'border-gray-200 bg-gray-50'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2">
+                                <span className="font-bold text-sm text-gray-800">
+                                  {word.word}
+                                </span>
+                                {word.is_active && (
+                                  <span className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full">
+                                    ATIVA
+                                  </span>
+                                )}
+                              </div>
+                              {word.category && (
+                                <p className="text-xs text-gray-600 mt-1">
+                                  <strong>Categoria:</strong> {word.category}
+                                </p>
+                              )}
+                            </div>
+                            
+                            <div className="flex items-center gap-1">
+                              <button
+                                onClick={() => handleToggleSearchWord(word.id, word.is_active)}
+                                className={`p-1 text-xs rounded transition-colors ${
+                                  word.is_active 
+                                    ? 'text-red-600 hover:bg-red-50' 
+                                    : 'text-green-600 hover:bg-green-50'
+                                }`}
+                                title={word.is_active ? 'Desativar' : 'Ativar'}
+                              >
+                                {word.is_active ? <Lock size={14} /> : <Unlock size={14} />}
+                              </button>
+                              <button
+                                onClick={() => openEditSearchWordModal(word)}
+                                className="p-1 text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                                title="Editar"
+                              >
+                                <Edit size={14} />
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setWordToDelete(word);
+                                  setShowDeleteModal(true);
+                                }}
+                                className="p-1 text-red-600 hover:bg-red-50 rounded transition-colors"
+                                title="Excluir"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8 text-gray-500">
+                      <Search size={48} className="mx-auto mb-4 text-gray-300" />
                       <p>Nenhuma palavra cadastrada ainda.</p>
                       <p className="text-sm">Adicione palavras para o jogo funcionar!</p>
                     </div>
@@ -382,6 +581,76 @@ const AdminGamesPage: React.FC = () => {
                     className="flex-1 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/80 transition-colors"
                   >
                     {editingWord ? 'Atualizar' : 'Adicionar'}
+                  </button>
+                </div>
+              </motion.div>
+            </div>
+          )}
+
+          {/* Modal para Palavras do Caça Palavras */}
+          {showSearchWordModal && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="bg-white rounded-xl p-6 w-full max-w-md mx-4"
+              >
+                <h3 className="text-xl font-bold text-gray-800 mb-4">
+                  {editingSearchWord ? 'Editar Palavra' : 'Nova Palavra'}
+                </h3>
+                
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Palavra *
+                    </label>
+                    <input
+                      type="text"
+                      value={newSearchWord.word}
+                      onChange={(e) => setNewSearchWord(prev => ({ ...prev, word: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      placeholder="Digite a palavra..."
+                      maxLength={15}
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Categoria
+                    </label>
+                    <select
+                      value={newSearchWord.category}
+                      onChange={(e) => setNewSearchWord(prev => ({ ...prev, category: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    >
+                      <option value="geral">Geral</option>
+                      <option value="programacao">Programação</option>
+                      <option value="tecnologia">Tecnologia</option>
+                      <option value="ciencia">Ciência</option>
+                      <option value="esportes">Esportes</option>
+                      <option value="animais">Animais</option>
+                      <option value="cores">Cores</option>
+                      <option value="comida">Comida</option>
+                    </select>
+                  </div>
+                </div>
+                
+                <div className="flex gap-3 mt-6">
+                  <button
+                    onClick={handleSaveSearchWord}
+                    className="flex-1 bg-purple-500 text-white px-4 py-2 rounded-lg hover:bg-purple-600 transition-colors"
+                  >
+                    {editingSearchWord ? 'Atualizar' : 'Adicionar'}
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowSearchWordModal(false);
+                      setEditingSearchWord(null);
+                      setNewSearchWord({ word: '', category: 'geral' });
+                    }}
+                    className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                  >
+                    Cancelar
                   </button>
                 </div>
               </motion.div>
