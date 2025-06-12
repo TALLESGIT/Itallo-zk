@@ -239,12 +239,10 @@ const WordGuessGame: React.FC<WordGuessGameProps> = ({ onBack }) => {
                     maxLength={20}
                     autoComplete="off"
                     autoCapitalize="characters"
-                    disabled={gameStatus !== 'playing'}
                   />
                   <button
                     onClick={handleGuess}
-                    disabled={gameStatus !== 'playing' || !guess.trim()}
-                    className="w-full sm:w-auto px-6 py-3 sm:py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full sm:w-auto px-6 py-3 sm:py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors duration-200 font-medium"
                   >
                     Tentar
                   </button>
