@@ -221,35 +221,39 @@ const WordGuessGame: React.FC<WordGuessGameProps> = ({ onBack }) => {
             </div>
           </div>
 
-          {/* Input Area - Sempre visível quando jogando */}
-          {gameStatus === 'playing' && (
-            <div className="space-y-3 sm:space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Digite sua tentativa:
-                </label>
-                <div className="flex flex-col sm:flex-row gap-2">
-                  <input
-                    type="text"
-                    value={guess}
-                    onChange={(e) => setGuess(e.target.value)}
-                    onKeyPress={(e) => e.key === 'Enter' && handleGuess()}
-                    className="flex-1 px-3 sm:px-4 py-3 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent text-base"
-                    placeholder="Digite uma palavra..."
-                    maxLength={20}
-                    autoComplete="off"
-                    autoCapitalize="characters"
-                  />
-                  <button
-                    onClick={handleGuess}
-                    className="w-full sm:w-auto px-6 py-3 sm:py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors duration-200 font-medium"
-                  >
-                    Tentar
-                  </button>
-                </div>
+          {/* Input Area - Sempre visível durante o jogo */}
+          <div className="space-y-3 sm:space-y-4 mb-4 sm:mb-6">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Digite sua tentativa:
+              </label>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <input
+                  type="text"
+                  value={guess}
+                  onChange={(e) => setGuess(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && gameStatus === 'playing' && handleGuess()}
+                  className="flex-1 px-3 sm:px-4 py-3 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent text-base"
+                  placeholder={gameStatus === 'playing' ? "Digite uma palavra..." : "Jogo finalizado"}
+                  maxLength={20}
+                  autoComplete="off"
+                  autoCapitalize="characters"
+                  disabled={gameStatus !== 'playing'}
+                />
+                <button
+                  onClick={handleGuess}
+                  disabled={gameStatus !== 'playing' || !guess.trim()}
+                  className={`w-full sm:w-auto px-6 py-3 sm:py-2 rounded-lg transition-colors duration-200 font-medium ${
+                    gameStatus === 'playing' && guess.trim()
+                      ? 'bg-primary text-white hover:bg-primary/90'
+                      : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                  }`}
+                >
+                  {gameStatus === 'playing' ? 'Tentar' : 'Finalizado'}
+                </button>
               </div>
             </div>
-          )}
+          </div>
 
           {/* Game Over */}
           {gameStatus !== 'playing' && (
