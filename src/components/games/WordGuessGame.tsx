@@ -68,11 +68,11 @@ const WordGuessGame: React.FC<WordGuessGameProps> = ({ onBack }) => {
     if (normalizedGuess === secretWord) {
       setGameStatus('won');
       toast.success('Parabéns! Você descobriu a palavra!');
-    } else if (newAttempts.length >= 5) {
+    } else if (newAttempts.length >= 3) {
       setGameStatus('lost');
       toast.error(`Que pena! A palavra era: ${secretWord}`);
     } else {
-      toast.info(`Tentativa ${newAttempts.length}/5. Continue tentando!`);
+      toast.info(`Tentativa ${newAttempts.length}/3. Continue tentando!`);
     }
 
     setGuess('');
@@ -163,7 +163,7 @@ const WordGuessGame: React.FC<WordGuessGameProps> = ({ onBack }) => {
               <div className="text-xs sm:text-sm text-gray-600">Letras</div>
             </div>
             <div>
-              <div className="text-xl sm:text-2xl font-bold text-primary">{attempts.length}/5</div>
+              <div className="text-xl sm:text-2xl font-bold text-primary">{attempts.length}/3</div>
               <div className="text-xs sm:text-sm text-gray-600">Tentativas</div>
             </div>
             <div>
@@ -302,7 +302,7 @@ const WordGuessGame: React.FC<WordGuessGameProps> = ({ onBack }) => {
               <span className="text-gray-700">Cinza: Letra não existe na palavra</span>
             </li>
             <li className="mt-2 sm:mt-3 text-gray-700">
-              • Você tem 5 tentativas para descobrir a palavra
+                              • Você tem 3 tentativas para descobrir a palavra
             </li>
             <li className="text-gray-700">
               • Use as dicas de cores para ajudar nas próximas tentativas
