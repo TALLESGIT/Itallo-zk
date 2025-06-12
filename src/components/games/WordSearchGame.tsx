@@ -28,6 +28,8 @@ const WordSearchGame: React.FC = () => {
   const [selectedCells, setSelectedCells] = useState<Position[]>([]);
   const [foundWords, setFoundWords] = useState<FoundWord[]>([]);
   const [isSelecting, setIsSelecting] = useState(false);
+  const [firstClick, setFirstClick] = useState<Position | null>(null);
+  const [isMobile, setIsMobile] = useState(false);
 
   // Palavras para encontrar
   const wordsToFind = [
@@ -117,6 +119,17 @@ const WordSearchGame: React.FC = () => {
     return () => clearInterval(interval);
   }, [gameStarted, gameCompleted, startTime]);
 
+  // Detectar se é mobile
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth <= 768 || 'ontouchstart' in window);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
   // Inicializar jogo
   useEffect(() => {
     generateGrid();
@@ -130,6 +143,7 @@ const WordSearchGame: React.FC = () => {
     setScore(0);
     setFoundWords([]);
     setSelectedCells([]);
+    setFirstClick(null);
     generateGrid();
   };
 
@@ -140,6 +154,7 @@ const WordSearchGame: React.FC = () => {
     setScore(0);
     setFoundWords([]);
     setSelectedCells([]);
+    setFirstClick(null);
     setShowNameInput(false);
     generateGrid();
   };
@@ -171,23 +186,62 @@ const WordSearchGame: React.FC = () => {
     return false;
   };
 
-  // Manipulação de seleção de células
-  const handleCellMouseDown = (row: number, col: number) => {
+  // Manipulação de seleção de células - Funciona para mobile e desktop
+  const handleCellClick = (row: number, col: number) => {
     if (!gameStarted || gameCompleted) return;
+
+    if (isMobile) {
+      // Modo mobile: sistema de dois cliques
+      if (!firstClick) {
+        // Primeiro clique - selecionar célula inicial
+        setFirstClick({ row, col });
+        setSelectedCells([{ row, col }]);
+      } else {
+        // Segundo clique - criar linha até a célula final
+        const positions = getLineBetweenCells(firstClick, { row, col });
+        setSelectedCells(positions);
+        
+        if (positions.length > 1) {
+          checkForWord(positions);
+        }
+        
+        setFirstClick(null);
+        setTimeout(() => setSelectedCells([]), 500);
+      }
+    }
+  };
+
+  const handleCellMouseDown = (row: number, col: number) => {
+    if (!gameStarted || gameCompleted || isMobile) return;
     setIsSelecting(true);
     setSelectedCells([{ row, col }]);
   };
 
   const handleCellMouseEnter = (row: number, col: number) => {
-    if (!isSelecting || selectedCells.length === 0) return;
+    if (!isSelecting || selectedCells.length === 0 || isMobile) return;
 
     const start = selectedCells[0];
+    const positions = getLineBetweenCells(start, { row, col });
+    setSelectedCells(positions);
+  };
+
+  const handleCellMouseUp = () => {
+    if (!isSelecting || isMobile) return;
+    setIsSelecting(false);
+
+    if (selectedCells.length > 1) {
+      checkForWord(selectedCells);
+    }
+    setTimeout(() => setSelectedCells([]), 500);
+  };
+
+  // Função para calcular linha entre duas células
+  const getLineBetweenCells = (start: Position, end: Position): Position[] => {
     const positions: Position[] = [];
+    const deltaRow = end.row - start.row;
+    const deltaCol = end.col - start.col;
 
-    // Calcular direção
-    const deltaRow = row - start.row;
-    const deltaCol = col - start.col;
-
+    // Verificar se é uma linha válida (horizontal, vertical ou diagonal)
     if (deltaRow === 0 || deltaCol === 0 || Math.abs(deltaRow) === Math.abs(deltaCol)) {
       const steps = Math.max(Math.abs(deltaRow), Math.abs(deltaCol));
       const stepRow = steps === 0 ? 0 : deltaRow / steps;
@@ -199,19 +253,12 @@ const WordSearchGame: React.FC = () => {
           col: start.col + Math.round(stepCol * i)
         });
       }
+    } else {
+      // Se não for uma linha válida, retornar apenas a célula inicial
+      positions.push(start);
     }
 
-    setSelectedCells(positions);
-  };
-
-  const handleCellMouseUp = () => {
-    if (!isSelecting) return;
-    setIsSelecting(false);
-
-    if (selectedCells.length > 1) {
-      checkForWord(selectedCells);
-    }
-    setSelectedCells([]);
+    return positions;
   };
 
   // Salvar pontuação
@@ -246,6 +293,10 @@ const WordSearchGame: React.FC = () => {
 
   const isCellSelected = (row: number, col: number) => {
     return selectedCells.some(cell => cell.row === row && cell.col === col);
+  };
+
+  const isCellFirstClick = (row: number, col: number) => {
+    return firstClick && firstClick.row === row && firstClick.col === col;
   };
 
   const isCellInFoundWord = (row: number, col: number) => {
@@ -289,6 +340,15 @@ const WordSearchGame: React.FC = () => {
         </div>
       )}
 
+      {/* Instructions for mobile */}
+      {gameStarted && isMobile && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4 text-center">
+          <p className="text-blue-800 text-sm">
+            📱 <strong>Mobile:</strong> Clique na primeira letra, depois na última letra da palavra
+          </p>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         {/* Game Grid */}
         <div className="lg:col-span-3">
@@ -310,9 +370,24 @@ const WordSearchGame: React.FC = () => {
             </div>
           ) : (
             <div className="bg-white rounded-xl shadow-lg p-4">
+              {/* Mobile controls */}
+              {isMobile && firstClick && (
+                <div className="mb-4 text-center">
+                  <button
+                    onClick={() => {
+                      setFirstClick(null);
+                      setSelectedCells([]);
+                    }}
+                    className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-medium"
+                  >
+                    Cancelar Seleção
+                  </button>
+                </div>
+              )}
+
               <div 
                 className="grid grid-cols-12 gap-1 select-none"
-                onMouseLeave={() => setSelectedCells([])}
+                onMouseLeave={() => !isMobile && setSelectedCells([])}
               >
                 {grid.map((row, rowIndex) =>
                   row.map((letter, colIndex) => (
@@ -321,18 +396,22 @@ const WordSearchGame: React.FC = () => {
                       className={`
                         w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center
                         text-sm sm:text-base font-bold cursor-pointer
-                        border border-gray-200 transition-all duration-200
+                        border-2 transition-all duration-200 select-none
                         ${isCellSelected(rowIndex, colIndex) 
-                          ? 'bg-purple-200 border-purple-400' 
+                          ? 'bg-blue-300 border-blue-500 text-blue-900 shadow-lg transform scale-105' 
+                          : isCellFirstClick(rowIndex, colIndex)
+                          ? 'bg-yellow-300 border-yellow-500 text-yellow-900 shadow-md animate-pulse'
                           : isCellInFoundWord(rowIndex, colIndex)
                           ? 'bg-green-200 border-green-400 text-green-800'
-                          : 'bg-gray-50 hover:bg-gray-100'
+                          : 'bg-gray-50 border-gray-200 hover:bg-gray-100 hover:border-gray-300'
                         }
                       `}
+                      onClick={() => handleCellClick(rowIndex, colIndex)}
                       onMouseDown={() => handleCellMouseDown(rowIndex, colIndex)}
                       onMouseEnter={() => handleCellMouseEnter(rowIndex, colIndex)}
                       onMouseUp={handleCellMouseUp}
-                      whileHover={{ scale: 1.05 }}
+                      onTouchStart={() => handleCellClick(rowIndex, colIndex)}
+                      whileHover={{ scale: isMobile ? 1 : 1.05 }}
                       whileTap={{ scale: 0.95 }}
                     >
                       {letter}
