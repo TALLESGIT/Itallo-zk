@@ -23,6 +23,13 @@ const GamesPage: React.FC = () => {
   const [selectedGame, setSelectedGame] = React.useState<string | null>(null);
   const { isGameEnabled, loading, isAdmin } = useGameSettings();
 
+  // Scroll to topo sempre que um jogo for selecionado
+  useEffect(() => {
+    if (selectedGame) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, [selectedGame]);
+
   const games = [
     {
       id: 'word_guess',
@@ -91,11 +98,6 @@ const GamesPage: React.FC = () => {
 
     const GameComponent = game.component;
     
-    // Garantir que a página role para o topo ao abrir o jogo
-    useEffect(() => {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }, []);
-
     return (
       <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-white">
         <div className="container mx-auto px-4 py-6 sm:py-8">

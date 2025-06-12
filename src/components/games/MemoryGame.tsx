@@ -133,23 +133,6 @@ const MemoryGame: React.FC<MemoryGameProps> = ({ onBack }) => {
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="mb-4 sm:mb-8">
-          <div className="flex items-center justify-between mb-2">
-            <button
-              onClick={onBack}
-              className="inline-flex items-center text-primary hover:text-primary/80 text-sm sm:text-base"
-            >
-              <ArrowLeft size={18} className="mr-1 sm:mr-2" />
-              <span className="hidden xs:inline">Voltar aos Jogos</span>
-              <span className="xs:hidden">Voltar</span>
-            </button>
-            <button
-              onClick={initializeGame}
-              className="inline-flex items-center text-primary hover:text-primary/80 p-2"
-              title="Reiniciar Jogo"
-            >
-              <RotateCcw size={18} />
-            </button>
-          </div>
           <div className="text-center">
             <h1 className="text-xl sm:text-2xl font-bold text-gray-800 flex items-center justify-center">
               <Star className="mr-2 text-primary" size={24} />
@@ -157,6 +140,7 @@ const MemoryGame: React.FC<MemoryGameProps> = ({ onBack }) => {
               <span className="sm:hidden">Memória</span>
             </h1>
           </div>
+          <div className="h-6 mb-2" />
         </div>
 
         {/* Game Info */}

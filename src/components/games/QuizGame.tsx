@@ -247,17 +247,7 @@ const QuizGame: React.FC<QuizGameProps> = ({ onBack }) => {
       <div className="max-w-2xl mx-auto">
         {/* Header */}
         <div className="mb-4 sm:mb-8">
-          <div className="flex items-center justify-between mb-2">
-            <button
-              onClick={onBack}
-              className="inline-flex items-center text-primary hover:text-primary/80 text-sm sm:text-base"
-            >
-              <ArrowLeft size={18} className="mr-1 sm:mr-2" />
-              <span className="hidden xs:inline">Voltar aos Jogos</span>
-              <span className="xs:hidden">Voltar</span>
-            </button>
-            <div className="w-16 sm:w-24"></div>
-          </div>
+          <div className="h-6 mb-2" />
           <div className="text-center">
             <h1 className="text-xl sm:text-2xl font-bold text-gray-800 flex items-center justify-center">
               <HelpCircle className="mr-2 text-primary" size={24} />

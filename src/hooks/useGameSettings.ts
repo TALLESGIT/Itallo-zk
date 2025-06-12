@@ -84,6 +84,22 @@ export const useGameSettings = () => {
         .eq('game_name', gameName)
         .select();
 
+      // Se nenhum registro foi atualizado, significa que ainda não existe – então cria um novo
+      if (!supabaseError && (data === null || (Array.isArray(data) && data.length === 0))) {
+        const { error: insertError } = await supabase
+          .from('game_settings')
+          .insert({
+            game_name: gameName,
+            is_enabled: isEnabled,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          });
+        if (insertError) {
+          console.error('Erro ao inserir nova configuração:', insertError);
+          throw insertError;
+        }
+      }
+
       if (supabaseError) {
         console.error('Erro do Supabase:', supabaseError);
         console.warn('Supabase not available, using localStorage:', supabaseError.message);
@@ -122,9 +138,36 @@ export const useGameSettings = () => {
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'game_settings' },
-        () => {
-          // Recarregar configurações quando algo mudar
-          fetchGameSettings();
+        (payload: any) => {
+          // Atualiza estado local de forma otimista sem depender somente de nova query
+          setGameSettings(prev => {
+            const idx = prev.findIndex(s => s.game_name === payload.new?.game_name);
+            if (payload.eventType === 'DELETE') {
+              // Remove configuração deletada
+              if (idx !== -1) {
+                const copy = [...prev];
+                copy.splice(idx, 1);
+                return copy;
+              }
+              return prev;
+            }
+
+            // Para INSERT ou UPDATE
+            const newSetting = {
+              id: payload.new.id,
+              game_name: payload.new.game_name,
+              is_enabled: payload.new.is_enabled,
+              created_at: payload.new.created_at,
+              updated_at: payload.new.updated_at,
+            } as GameSetting;
+
+            if (idx !== -1) {
+              const copy = [...prev];
+              copy[idx] = newSetting;
+              return copy;
+            }
+            return [...prev, newSetting];
+          });
         }
       )
       .subscribe();
