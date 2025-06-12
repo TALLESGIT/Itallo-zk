@@ -43,10 +43,17 @@ const Header: React.FC = () => {
           {!isAdmin && (
             <Link
               to="/ganhadores"
-              className="flex items-center gap-2 text-gray-600 hover:text-primary transition-colors"
+              className="text-gray-700 hover:text-primary transition-colors"
             >
-              <Trophy size={20} />
-              <span className="hidden sm:inline">Ganhadores</span>
+              Ganhadores
+            </Link>
+          )}
+          {!isAdmin && (
+            <Link
+              to="/brincadeiras"
+              className="text-gray-700 hover:text-primary transition-colors"
+            >
+              Brincadeiras
             </Link>
           )}
 

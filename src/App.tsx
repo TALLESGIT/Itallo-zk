@@ -9,6 +9,7 @@ import ParticipantsList from './pages/admin/ParticipantsList';
 import RequestsPage from './pages/admin/RequestsPage';
 import DrawPage from './pages/admin/DrawPage';
 import SettingsPage from './pages/admin/SettingsPage';
+import GamesPage from './pages/GamesPage';
 import ProtectedRoute from './components/ProtectedRoute';
 
 function App() {
@@ -19,6 +20,7 @@ function App() {
           {/* Public Routes */}
           <Route path="/" element={<HomePage />} />
           <Route path="/ganhadores" element={<WinnersPage />} />
+          <Route path="/brincadeiras" element={<GamesPage />} />
           <Route path="/admin/login" element={<AdminLogin />} />
 
           {/* Protected Admin Routes */}
