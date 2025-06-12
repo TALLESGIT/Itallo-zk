@@ -96,10 +96,10 @@ const WordGuessGame: React.FC<WordGuessGameProps> = ({ onBack }) => {
 
   if (loading) {
     return (
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-2 sm:px-4 py-4 sm:py-8">
         <div className="max-w-2xl mx-auto text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-gray-600">Carregando jogo...</p>
+          <div className="animate-spin rounded-full h-10 w-10 sm:h-12 sm:w-12 border-b-2 border-primary mx-auto mb-3 sm:mb-4"></div>
+          <p className="text-sm sm:text-base text-gray-600">Carregando jogo...</p>
         </div>
       </div>
     );
@@ -107,19 +107,20 @@ const WordGuessGame: React.FC<WordGuessGameProps> = ({ onBack }) => {
 
   if (!secretWord) {
     return (
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-2 sm:px-4 py-4 sm:py-8">
         <div className="max-w-2xl mx-auto text-center">
           <button
             onClick={onBack}
-            className="inline-flex items-center text-primary hover:text-primary/80 mb-6"
+            className="inline-flex items-center text-primary hover:text-primary/80 mb-4 sm:mb-6 text-sm sm:text-base"
           >
-            <ArrowLeft size={20} className="mr-2" />
-            Voltar aos Jogos
+            <ArrowLeft size={18} className="mr-1 sm:mr-2" />
+            <span className="hidden xs:inline">Voltar aos Jogos</span>
+            <span className="xs:hidden">Voltar</span>
           </button>
-          <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-6">
-            <AlertCircle className="mx-auto mb-4 text-yellow-600" size={48} />
-            <h3 className="text-xl font-bold text-yellow-800 mb-2">Jogo Indisponível</h3>
-            <p className="text-yellow-700">
+          <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 sm:p-6">
+            <AlertCircle className="mx-auto mb-3 sm:mb-4 text-yellow-600" size={40} />
+            <h3 className="text-lg sm:text-xl font-bold text-yellow-800 mb-2">Jogo Indisponível</h3>
+            <p className="text-sm sm:text-base text-yellow-700">
               Nenhuma palavra foi configurada pelo administrador ainda. Volte mais tarde!
             </p>
           </div>
@@ -129,47 +130,49 @@ const WordGuessGame: React.FC<WordGuessGameProps> = ({ onBack }) => {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="container mx-auto px-2 sm:px-4 py-4 sm:py-8">
       <div className="max-w-2xl mx-auto">
         {/* Header */}
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center justify-between mb-4 sm:mb-8">
           <button
             onClick={onBack}
-            className="inline-flex items-center text-primary hover:text-primary/80"
+            className="inline-flex items-center text-primary hover:text-primary/80 text-sm sm:text-base"
           >
-            <ArrowLeft size={20} className="mr-2" />
-            Voltar aos Jogos
+            <ArrowLeft size={18} className="mr-1 sm:mr-2" />
+            <span className="hidden xs:inline">Voltar aos Jogos</span>
+            <span className="xs:hidden">Voltar</span>
           </button>
-          <div className="text-center">
-            <h1 className="text-2xl font-bold text-gray-800 flex items-center">
-              <Brain className="mr-2 text-primary" size={28} />
-              Descubra a Palavra
+          <div className="text-center flex-1 mx-2">
+            <h1 className="text-lg sm:text-2xl font-bold text-gray-800 flex items-center justify-center">
+              <Brain className="mr-1 sm:mr-2 text-primary" size={20} />
+              <span className="hidden sm:inline">Descubra a Palavra</span>
+              <span className="sm:hidden">Palavra</span>
             </h1>
           </div>
-          <div className="w-24"></div>
+          <div className="w-16 sm:w-24"></div>
         </div>
 
         {/* Game Info */}
-        <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl p-6 mb-8">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
+        <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl p-3 sm:p-6 mb-4 sm:mb-8">
+          <div className="grid grid-cols-3 gap-2 sm:gap-4 text-center">
             <div>
-              <div className="text-2xl font-bold text-primary">{secretWord.length}</div>
-              <div className="text-sm text-gray-600">Letras</div>
+              <div className="text-xl sm:text-2xl font-bold text-primary">{secretWord.length}</div>
+              <div className="text-xs sm:text-sm text-gray-600">Letras</div>
             </div>
             <div>
-              <div className="text-2xl font-bold text-primary">{attempts.length}/5</div>
-              <div className="text-sm text-gray-600">Tentativas</div>
+              <div className="text-xl sm:text-2xl font-bold text-primary">{attempts.length}/5</div>
+              <div className="text-xs sm:text-sm text-gray-600">Tentativas</div>
             </div>
             <div>
-              <div className="text-2xl font-bold text-primary">
+              <div className="text-xl sm:text-2xl font-bold text-primary">
                 {gameStatus === 'won' ? '🏆' : gameStatus === 'lost' ? '😔' : '🎯'}
               </div>
-              <div className="text-sm text-gray-600">Status</div>
+              <div className="text-xs sm:text-sm text-gray-600">Status</div>
             </div>
           </div>
           {hint && (
-            <div className="mt-4 p-3 bg-white/50 rounded-lg">
-              <p className="text-sm text-gray-700">
+            <div className="mt-3 sm:mt-4 p-2 sm:p-3 bg-white/50 rounded-lg">
+              <p className="text-xs sm:text-sm text-gray-700">
                 <strong>Dica:</strong> {hint}
               </p>
             </div>
@@ -177,24 +180,24 @@ const WordGuessGame: React.FC<WordGuessGameProps> = ({ onBack }) => {
         </div>
 
         {/* Game Area */}
-        <div className="bg-white rounded-xl shadow-lg p-6 mb-8">
+        <div className="bg-white rounded-xl shadow-lg p-3 sm:p-6 mb-4 sm:mb-8">
           {/* Attempts Display */}
-          <div className="mb-6">
-            <h3 className="text-lg font-semibold text-gray-800 mb-4">Suas Tentativas:</h3>
-            <div className="space-y-2">
+          <div className="mb-4 sm:mb-6">
+            <h3 className="text-base sm:text-lg font-semibold text-gray-800 mb-3 sm:mb-4">Suas Tentativas:</h3>
+            <div className="space-y-2 overflow-x-auto">
               {attempts.map((attempt, index) => (
                 <motion.div
                   key={index}
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
-                  className="flex gap-1"
+                  className="flex gap-1 sm:gap-2 min-w-fit"
                 >
                   {attempt.split('').map((letter, letterIndex) => {
                     const status = getLetterStatus(letter, letterIndex, attempt);
                     return (
                       <div
                         key={letterIndex}
-                        className={`w-12 h-12 flex items-center justify-center rounded-lg font-bold text-white ${
+                        className={`w-8 h-8 sm:w-12 sm:h-12 flex items-center justify-center rounded-lg font-bold text-white text-sm sm:text-base ${
                           status === 'correct' ? 'bg-green-500' :
                           status === 'present' ? 'bg-yellow-500' :
                           'bg-gray-400'
@@ -204,11 +207,11 @@ const WordGuessGame: React.FC<WordGuessGameProps> = ({ onBack }) => {
                       </div>
                     );
                   })}
-                  <div className="flex items-center ml-4">
+                  <div className="flex items-center ml-2 sm:ml-4">
                     {attempt === secretWord ? (
-                      <CheckCircle className="text-green-500" size={20} />
+                      <CheckCircle className="text-green-500" size={16} />
                     ) : (
-                      <X className="text-red-500" size={20} />
+                      <X className="text-red-500" size={16} />
                     )}
                   </div>
                 </motion.div>
@@ -218,24 +221,26 @@ const WordGuessGame: React.FC<WordGuessGameProps> = ({ onBack }) => {
 
           {/* Input Area */}
           {gameStatus === 'playing' && (
-            <div className="space-y-4">
+            <div className="space-y-3 sm:space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Digite sua tentativa:
                 </label>
-                <div className="flex gap-2">
+                <div className="flex flex-col sm:flex-row gap-2">
                   <input
                     type="text"
                     value={guess}
                     onChange={(e) => setGuess(e.target.value)}
                     onKeyPress={(e) => e.key === 'Enter' && handleGuess()}
-                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+                    className="flex-1 px-3 sm:px-4 py-3 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent text-base"
                     placeholder="Digite uma palavra..."
                     maxLength={20}
+                    autoComplete="off"
+                    autoCapitalize="characters"
                   />
                   <button
                     onClick={handleGuess}
-                    className="px-6 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
+                    className="w-full sm:w-auto px-6 py-3 sm:py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors font-medium"
                   >
                     Tentar
                   </button>
@@ -249,15 +254,15 @@ const WordGuessGame: React.FC<WordGuessGameProps> = ({ onBack }) => {
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              className="text-center space-y-4"
+              className="text-center space-y-3 sm:space-y-4"
             >
-              <div className={`text-6xl ${gameStatus === 'won' ? 'text-green-500' : 'text-red-500'}`}>
+              <div className={`text-4xl sm:text-6xl ${gameStatus === 'won' ? 'text-green-500' : 'text-red-500'}`}>
                 {gameStatus === 'won' ? '🎉' : '😔'}
               </div>
-              <h3 className="text-xl font-bold text-gray-800">
+              <h3 className="text-lg sm:text-xl font-bold text-gray-800">
                 {gameStatus === 'won' ? 'Parabéns!' : 'Que pena!'}
               </h3>
-              <p className="text-gray-600">
+              <p className="text-sm sm:text-base text-gray-600 px-2">
                 {gameStatus === 'won' 
                   ? `Você descobriu a palavra "${secretWord}" em ${attempts.length} tentativa${attempts.length > 1 ? 's' : ''}!`
                   : `A palavra era "${secretWord}". Tente novamente!`
@@ -265,7 +270,7 @@ const WordGuessGame: React.FC<WordGuessGameProps> = ({ onBack }) => {
               </p>
               <button
                 onClick={resetGame}
-                className="px-6 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
+                className="w-full sm:w-auto px-6 py-3 sm:py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors font-medium"
               >
                 Jogar Novamente
               </button>
@@ -274,22 +279,22 @@ const WordGuessGame: React.FC<WordGuessGameProps> = ({ onBack }) => {
         </div>
 
         {/* Instructions */}
-        <div className="bg-gray-50 rounded-xl p-6">
-          <h3 className="text-lg font-semibold text-gray-800 mb-3">Como Jogar:</h3>
-          <ul className="space-y-2 text-sm text-gray-600">
+        <div className="bg-gray-50 rounded-xl p-4 sm:p-6">
+          <h3 className="text-base sm:text-lg font-semibold text-gray-800 mb-3">Como Jogar:</h3>
+          <ul className="space-y-2 text-xs sm:text-sm text-gray-600">
             <li className="flex items-center">
-              <div className="w-4 h-4 bg-green-500 rounded mr-3"></div>
-              Verde: Letra correta na posição certa
+              <div className="w-3 h-3 sm:w-4 sm:h-4 bg-green-500 rounded mr-2 sm:mr-3 flex-shrink-0"></div>
+              <span className="text-gray-700">Verde: Letra correta na posição certa</span>
             </li>
             <li className="flex items-center">
-              <div className="w-4 h-4 bg-yellow-500 rounded mr-3"></div>
-              Amarelo: Letra existe mas na posição errada
+              <div className="w-3 h-3 sm:w-4 sm:h-4 bg-yellow-500 rounded mr-2 sm:mr-3 flex-shrink-0"></div>
+              <span className="text-gray-700">Amarelo: Letra existe mas na posição errada</span>
             </li>
             <li className="flex items-center">
-              <div className="w-4 h-4 bg-gray-400 rounded mr-3"></div>
-              Cinza: Letra não existe na palavra
+              <div className="w-3 h-3 sm:w-4 sm:h-4 bg-gray-400 rounded mr-2 sm:mr-3 flex-shrink-0"></div>
+              <span className="text-gray-700">Cinza: Letra não existe na palavra</span>
             </li>
-            <li className="mt-3 text-gray-700">
+            <li className="mt-2 sm:mt-3 text-gray-700">
               • Você tem 5 tentativas para descobrir a palavra
             </li>
             <li className="text-gray-700">
