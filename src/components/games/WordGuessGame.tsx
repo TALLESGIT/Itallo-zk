@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Brain, Trophy, AlertCircle, CheckCircle, X } from 'lucide-react';
+import { ArrowLeft, Brain, Trophy, AlertCircle, CheckCircle, X, Clock } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { toast } from 'react-toastify';
 
@@ -15,10 +15,35 @@ const WordGuessGame: React.FC<WordGuessGameProps> = ({ onBack }) => {
   const [gameStatus, setGameStatus] = useState<'playing' | 'won' | 'lost'>('playing');
   const [loading, setLoading] = useState(true);
   const [hint, setHint] = useState<string>('');
+  const [timeLeft, setTimeLeft] = useState<number>(59);
+  const [timerActive, setTimerActive] = useState<boolean>(false);
 
   useEffect(() => {
     fetchSecretWord();
   }, []);
+
+  // Timer effect
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    
+    if (timerActive && timeLeft > 0 && gameStatus === 'playing') {
+      interval = setInterval(() => {
+        setTimeLeft((prev) => {
+          if (prev <= 1) {
+            setGameStatus('lost');
+            setTimerActive(false);
+            toast.error(`Tempo esgotado! A palavra era: ${secretWord}`);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [timerActive, timeLeft, gameStatus, secretWord]);
 
   const fetchSecretWord = async () => {
     try {
@@ -37,6 +62,9 @@ const WordGuessGame: React.FC<WordGuessGameProps> = ({ onBack }) => {
       if (data && data.length > 0) {
         setSecretWord(data[0].word.toUpperCase());
         setHint(data[0].hint || '');
+        // Iniciar o timer quando a palavra for carregada
+        setTimeLeft(59);
+        setTimerActive(true);
       } else {
         console.log('Nenhuma palavra ativa encontrada');
         // Não definir secretWord deixa o componente mostrar a mensagem de indisponível
@@ -67,9 +95,11 @@ const WordGuessGame: React.FC<WordGuessGameProps> = ({ onBack }) => {
 
     if (normalizedGuess === secretWord) {
       setGameStatus('won');
+      setTimerActive(false);
       toast.success('Parabéns! Você descobriu a palavra!');
     } else if (newAttempts.length >= 3) {
       setGameStatus('lost');
+      setTimerActive(false);
       toast.error(`Que pena! A palavra era: ${secretWord}`);
     } else {
       toast.info(`Tentativa ${newAttempts.length}/3. Continue tentando!`);
@@ -82,6 +112,8 @@ const WordGuessGame: React.FC<WordGuessGameProps> = ({ onBack }) => {
     setAttempts([]);
     setGameStatus('playing');
     setGuess('');
+    setTimeLeft(59);
+    setTimerActive(false);
     fetchSecretWord();
   };
 
@@ -157,7 +189,7 @@ const WordGuessGame: React.FC<WordGuessGameProps> = ({ onBack }) => {
 
         {/* Game Info */}
         <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl p-3 sm:p-6 mb-4 sm:mb-8">
-          <div className="grid grid-cols-3 gap-2 sm:gap-4 text-center">
+          <div className="grid grid-cols-4 gap-2 sm:gap-4 text-center">
             <div>
               <div className="text-xl sm:text-2xl font-bold text-primary">{secretWord.length}</div>
               <div className="text-xs sm:text-sm text-gray-600">Letras</div>
@@ -165,6 +197,15 @@ const WordGuessGame: React.FC<WordGuessGameProps> = ({ onBack }) => {
             <div>
               <div className="text-xl sm:text-2xl font-bold text-primary">{attempts.length}/3</div>
               <div className="text-xs sm:text-sm text-gray-600">Tentativas</div>
+            </div>
+            <div>
+              <div className={`text-xl sm:text-2xl font-bold flex items-center justify-center ${
+                timeLeft <= 10 ? 'text-red-500 animate-pulse' : 'text-primary'
+              }`}>
+                <Clock size={16} className="mr-1" />
+                {timeLeft}s
+              </div>
+              <div className="text-xs sm:text-sm text-gray-600">Tempo</div>
             </div>
             <div>
               <div className="text-xl sm:text-2xl font-bold text-primary">
@@ -243,14 +284,14 @@ const WordGuessGame: React.FC<WordGuessGameProps> = ({ onBack }) => {
                 />
                 <button
                   onClick={handleGuess}
-                  disabled={gameStatus !== 'playing' || !guess.trim()}
+                  disabled={gameStatus !== 'playing' || !guess.trim() || timeLeft === 0}
                   className={`w-full sm:w-auto px-6 py-3 sm:py-2 rounded-lg transition-colors duration-200 font-medium ${
-                    gameStatus === 'playing' && guess.trim()
+                    gameStatus === 'playing' && guess.trim() && timeLeft > 0
                       ? 'bg-primary text-white hover:bg-primary/80'
                       : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                   }`}
                 >
-                  {gameStatus === 'playing' ? 'Tentar' : 'Finalizado'}
+                  {gameStatus === 'playing' && timeLeft > 0 ? 'Tentar' : 'Finalizado'}
                 </button>
               </div>
             </div>
@@ -271,8 +312,10 @@ const WordGuessGame: React.FC<WordGuessGameProps> = ({ onBack }) => {
               </h3>
               <p className="text-sm sm:text-base text-gray-600 px-2">
                 {gameStatus === 'won' 
-                  ? `Você descobriu a palavra "${secretWord}" em ${attempts.length} tentativa${attempts.length > 1 ? 's' : ''}!`
-                  : `A palavra era "${secretWord}". Tente novamente!`
+                  ? `Você descobriu a palavra "${secretWord}" em ${attempts.length} tentativa${attempts.length > 1 ? 's' : ''} e ${59 - timeLeft} segundos!`
+                  : timeLeft === 0 
+                    ? `Tempo esgotado! A palavra era "${secretWord}". Tente novamente!`
+                    : `A palavra era "${secretWord}". Tente novamente!`
                 }
               </p>
               <button
@@ -302,10 +345,13 @@ const WordGuessGame: React.FC<WordGuessGameProps> = ({ onBack }) => {
               <span className="text-gray-700">Cinza: Letra não existe na palavra</span>
             </li>
             <li className="mt-2 sm:mt-3 text-gray-700">
-                              • Você tem 3 tentativas para descobrir a palavra
+              • Você tem 3 tentativas e 59 segundos para descobrir a palavra
             </li>
             <li className="text-gray-700">
               • Use as dicas de cores para ajudar nas próximas tentativas
+            </li>
+            <li className="text-gray-700">
+              • O cronômetro impede consultas externas para manter o desafio justo
             </li>
           </ul>
         </div>
