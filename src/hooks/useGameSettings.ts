@@ -21,7 +21,7 @@ export const useGameSettings = () => {
     { game_name: 'number_guess', is_enabled: false },
     { game_name: 'memory_game', is_enabled: false },
     { game_name: 'quiz_game', is_enabled: false },
-    { game_name: 'rock_paper_scissors', is_enabled: false },
+    { game_name: 'word_search', is_enabled: false },
   ];
 
   const fetchGameSettings = async () => {
@@ -40,7 +40,15 @@ export const useGameSettings = () => {
         // Fallback to localStorage
         const stored = localStorage.getItem('gameSettings');
         if (stored) {
-          setGameSettings(JSON.parse(stored));
+          const parsedSettings = JSON.parse(stored);
+          // Migrate old rock_paper_scissors to word_search
+          const migratedSettings = parsedSettings.map((setting: any) => 
+            setting.game_name === 'rock_paper_scissors' 
+              ? { ...setting, game_name: 'word_search' }
+              : setting
+          );
+          setGameSettings(migratedSettings);
+          localStorage.setItem('gameSettings', JSON.stringify(migratedSettings));
         } else {
           // Initialize with default settings
           const initialSettings = defaultSettings.map((setting, index) => ({
