@@ -1,15 +1,17 @@
 import { useState, useEffect } from 'react';
 import AdminLayout from '../../components/admin/AdminLayout';
 import { useApp } from '../../contexts/AppContext';
-import { RefreshCw, AlertTriangle, Trash2, Mail, Lock, Eye, EyeOff, Upload, Settings, Save, AlertCircle, CheckCircle, Brain, Plus, Edit } from 'lucide-react';
+import { RefreshCw, AlertTriangle, Trash2, Mail, Lock, Eye, EyeOff, Upload, Settings, Save, AlertCircle, CheckCircle, Brain, Plus, Edit, Gamepad2, Hash, HelpCircle, Scissors, Unlock } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { supabase } from '../../lib/supabase';
 import { getDrawConfig, saveDrawConfig } from '../../services/dataService';
 import type { DrawConfig } from '../../types';
 import { motion } from 'framer-motion';
+import { useGameSettings } from '../../hooks/useGameSettings';
 
 const SettingsPage: React.FC = () => {
   const { resetSystem } = useApp();
+  const { gameSettings, updateGameSetting, loading: gameSettingsLoading } = useGameSettings();
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
@@ -568,6 +570,96 @@ const SettingsPage: React.FC = () => {
                       <Brain size={48} className="mx-auto mb-4 text-gray-300" />
                       <p>Nenhuma palavra cadastrada ainda.</p>
                       <p className="text-sm">Adicione palavras para o jogo funcionar!</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <h2 className="text-xl font-semibold mb-4">Controle de Acesso aos Jogos</h2>
+              <div className="bg-white rounded-xl shadow-lg p-6">
+                <div className="flex items-center mb-6">
+                  <Gamepad2 className="text-primary mr-3" size={24} />
+                  <h2 className="text-xl font-bold text-gray-800">Liberar/Bloquear Jogos</h2>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="mb-4">
+                    <p className="text-gray-600">
+                      Controle quais jogos os usuários podem acessar. Jogos bloqueados aparecerão com cadeado.
+                    </p>
+                  </div>
+
+                  {gameSettingsLoading ? (
+                    <div className="text-center py-8 text-gray-500">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+                      <p>Carregando configurações...</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {[
+                        { id: 'word_guess', name: 'Descubra a Palavra', icon: Gamepad2, color: 'text-blue-600' },
+                        { id: 'number_guess', name: 'Adivinhe o Número', icon: Hash, color: 'text-green-600' },
+                        { id: 'memory_game', name: 'Jogo da Memória', icon: Brain, color: 'text-pink-600' },
+                        { id: 'quiz_game', name: 'Quiz Conhecimentos', icon: HelpCircle, color: 'text-orange-600' },
+                        { id: 'rock_paper_scissors', name: 'Pedra, Papel, Tesoura', icon: Scissors, color: 'text-indigo-600' },
+                      ].map((game) => {
+                        const Icon = game.icon;
+                        const setting = gameSettings.find(s => s.game_name === game.id);
+                        const isEnabled = setting?.is_enabled || false;
+                        
+                        return (
+                          <div
+                            key={game.id}
+                            className={`p-4 rounded-lg border-2 transition-all ${
+                              isEnabled 
+                                ? 'border-green-300 bg-green-50' 
+                                : 'border-red-300 bg-red-50'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-3">
+                                <Icon className={`${game.color} w-6 h-6`} />
+                                <div>
+                                  <span className="font-bold text-lg text-gray-800">
+                                    {game.name}
+                                  </span>
+                                  <div className="flex items-center gap-2 mt-1">
+                                    {isEnabled ? (
+                                      <>
+                                        <Unlock className="w-4 h-4 text-green-600" />
+                                        <span className="text-sm text-green-700 font-medium">
+                                          Liberado para usuários
+                                        </span>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <Lock className="w-4 h-4 text-red-600" />
+                                        <span className="text-sm text-red-700 font-medium">
+                                          Bloqueado para usuários
+                                        </span>
+                                      </>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <button
+                                  onClick={() => updateGameSetting(game.id, !isEnabled)}
+                                  className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                                    isEnabled
+                                      ? 'bg-red-500 text-white hover:bg-red-600'
+                                      : 'bg-green-500 text-white hover:bg-green-600'
+                                  }`}
+                                >
+                                  {isEnabled ? 'Bloquear' : 'Liberar'}
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
                 </div>

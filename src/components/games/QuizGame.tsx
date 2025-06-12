@@ -232,7 +232,7 @@ const QuizGame: React.FC<QuizGameProps> = ({ onBack }) => {
 
             <button
               onClick={resetGame}
-              className="w-full sm:w-auto px-6 py-3 sm:py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors font-medium"
+              className="w-full sm:w-auto px-6 py-3 sm:py-2 bg-primary text-white rounded-lg hover:bg-primary/80 transition-colors font-medium"
             >
               Jogar Novamente
             </button>

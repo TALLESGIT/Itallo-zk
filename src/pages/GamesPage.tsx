@@ -1,187 +1,227 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { motion } from 'framer-motion';
-import Header from '../components/layout/Header';
-import Footer from '../components/layout/Footer';
-import { Gamepad2, Trophy, Brain, Zap, Star, ArrowLeft, HelpCircle, Scissors } from 'lucide-react';
+import { 
+  Gamepad2, 
+  Hash, 
+  Brain, 
+  HelpCircle, 
+  Scissors,
+  Lock,
+  Unlock
+} from 'lucide-react';
 import WordGuessGame from '../components/games/WordGuessGame';
 import NumberGuessGame from '../components/games/NumberGuessGame';
 import MemoryGame from '../components/games/MemoryGame';
 import QuizGame from '../components/games/QuizGame';
-import RockPaperScissorsGame from '../components/games/RockPaperScissorsGame';
+import RockPaperScissors from '../components/games/RockPaperScissors';
+import { useGameSettings } from '../hooks/useGameSettings';
 
 const GamesPage: React.FC = () => {
-  const [selectedGame, setSelectedGame] = useState<string | null>(null);
+  const [selectedGame, setSelectedGame] = React.useState<string | null>(null);
+  const { isGameEnabled, loading, isAdmin } = useGameSettings();
 
   const games = [
     {
-      id: 'word-guess',
-      title: 'Descubra a Palavra',
-      description: 'Tente descobrir a palavra secreta definida pelo administrador!',
-      icon: Brain,
+      id: 'word_guess',
+      name: 'Descubra a Palavra',
+      description: 'Adivinhe a palavra secreta com dicas coloridas!',
+      icon: Gamepad2,
       color: 'from-blue-500 to-purple-600',
-      difficulty: 'Médio'
+      component: WordGuessGame,
     },
     {
-      id: 'number-guess',
-      title: 'Adivinhe o Número',
+      id: 'number_guess',
+      name: 'Adivinhe o Número',
       description: 'Descubra o número secreto entre 1 e 100!',
-      icon: Zap,
+      icon: Hash,
       color: 'from-green-500 to-teal-600',
-      difficulty: 'Fácil'
+      component: NumberGuessGame,
     },
     {
-      id: 'memory-game',
-      title: 'Jogo da Memória',
-      description: 'Teste sua memória encontrando os pares de cartas!',
-      icon: Star,
+      id: 'memory_game',
+      name: 'Jogo da Memória',
+      description: 'Encontre todos os pares de cartas!',
+      icon: Brain,
       color: 'from-pink-500 to-rose-600',
-      difficulty: 'Difícil'
+      component: MemoryGame,
     },
     {
-      id: 'quiz-game',
-      title: 'Quiz de Conhecimentos',
-      description: 'Teste seus conhecimentos com perguntas variadas!',
+      id: 'quiz_game',
+      name: 'Quiz Conhecimentos',
+      description: 'Teste seus conhecimentos gerais!',
       icon: HelpCircle,
       color: 'from-orange-500 to-red-600',
-      difficulty: 'Médio'
+      component: QuizGame,
     },
     {
-      id: 'rock-paper-scissors',
-      title: 'Pedra, Papel e Tesoura',
-      description: 'Jogue o clássico contra o computador!',
+      id: 'rock_paper_scissors',
+      name: 'Pedra, Papel, Tesoura',
+      description: 'Clássico jogo contra o computador!',
       icon: Scissors,
-      color: 'from-purple-500 to-indigo-600',
-      difficulty: 'Fácil'
-    }
+      color: 'from-indigo-500 to-blue-600',
+      component: RockPaperScissors,
+    },
   ];
 
-  const renderGame = () => {
-    switch (selectedGame) {
-      case 'word-guess':
-        return <WordGuessGame onBack={() => setSelectedGame(null)} />;
-      case 'number-guess':
-        return <NumberGuessGame onBack={() => setSelectedGame(null)} />;
-      case 'memory-game':
-        return <MemoryGame onBack={() => setSelectedGame(null)} />;
-      case 'quiz-game':
-        return <QuizGame onBack={() => setSelectedGame(null)} />;
-      case 'rock-paper-scissors':
-        return <RockPaperScissorsGame onBack={() => setSelectedGame(null)} />;
-      default:
-        return null;
-    }
-  };
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-white p-4 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-gray-600">Carregando jogos...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (selectedGame) {
+    const game = games.find(g => g.id === selectedGame);
+    if (!game) return null;
+
+    const GameComponent = game.component;
+    
     return (
-      <div className="min-h-screen flex flex-col">
-        <Header />
-        <main className="flex-grow pt-16">
-          {renderGame()}
-        </main>
-        <Footer />
+      <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-white">
+        <div className="container mx-auto px-4 py-6 sm:py-8">
+          <div className="mb-6 sm:mb-8">
+            <button
+              onClick={() => setSelectedGame(null)}
+              className="flex items-center text-primary hover:text-primary/80 transition-colors mb-4"
+            >
+              ← Voltar aos Jogos
+            </button>
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-2">
+              {game.name}
+            </h1>
+            <p className="text-gray-600 text-sm sm:text-base">
+              {game.description}
+            </p>
+          </div>
+          
+          <GameComponent />
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <Header />
-      
-      <main className="flex-grow pt-16 pb-10">
-        <div className="container mx-auto px-4 py-8">
-          {/* Hero Section */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-white">
+      <div className="container mx-auto px-4 py-6 sm:py-8">
+        <div className="text-center mb-8 sm:mb-12">
+          <motion.h1 
+            className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-800 mb-4"
+            initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
-            className="text-center mb-12"
           >
-            <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-r from-primary to-secondary rounded-full mb-6">
-              <Gamepad2 size={40} className="text-white" />
-            </div>
-            <h1 className="text-4xl md:text-5xl font-bold text-gray-800 mb-4">
-              Central de Brincadeiras
-            </h1>
-            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              Divirta-se com nossos jogos interativos enquanto aguarda o sorteio!
-            </p>
-          </motion.div>
+            🎮 Brincadeiras
+          </motion.h1>
+          <motion.p 
+            className="text-gray-600 text-base sm:text-lg max-w-2xl mx-auto px-4"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.2 }}
+          >
+            Divirta-se com nossa coleção de jogos interativos!
+          </motion.p>
+        </div>
 
-          {/* Games Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6 max-w-7xl mx-auto">
-            {games.map((game, index) => (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 max-w-6xl mx-auto">
+          {games.map((game, index) => {
+            const Icon = game.icon;
+            const enabled = isGameEnabled(game.id);
+            const canAccess = enabled || isAdmin;
+            
+            return (
               <motion.div
                 key={game.id}
+                className={`relative group ${canAccess ? 'cursor-pointer' : 'cursor-not-allowed'}`}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6, delay: index * 0.1 }}
-                className="group cursor-pointer"
-                onClick={() => setSelectedGame(game.id)}
+                onClick={() => canAccess && setSelectedGame(game.id)}
               >
-                <div className="bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden border border-gray-100 group-hover:border-primary/20">
-                  {/* Card Header */}
-                  <div className={`h-32 bg-gradient-to-r ${game.color} relative overflow-hidden`}>
-                    <div className="absolute inset-0 bg-black/10"></div>
-                    <div className="relative z-10 flex items-center justify-center h-full">
-                      <game.icon size={48} className="text-white" />
-                    </div>
-                    <div className="absolute top-4 right-4">
-                      <span className="bg-white/20 backdrop-blur-sm text-white text-xs px-2 py-1 rounded-full">
-                        {game.difficulty}
+                <div className={`
+                  relative overflow-hidden rounded-xl sm:rounded-2xl p-6 sm:p-8 h-48 sm:h-56
+                  bg-gradient-to-br ${game.color} text-white
+                  transform transition-all duration-300
+                  ${canAccess ? 'hover:scale-105 hover:shadow-2xl' : 'opacity-60'}
+                  ${!enabled ? 'grayscale' : ''}
+                `}>
+                  {/* Lock/Unlock Icon */}
+                  <div className="absolute top-4 right-4">
+                    {enabled ? (
+                      <Unlock className="w-5 h-5 text-white/80" />
+                    ) : (
+                      <Lock className="w-5 h-5 text-white/80" />
+                    )}
+                  </div>
+
+                  {/* Game Icon */}
+                  <div className="mb-4">
+                    <Icon className="w-10 h-10 sm:w-12 sm:h-12" />
+                  </div>
+
+                  {/* Game Info */}
+                  <h3 className="text-lg sm:text-xl font-bold mb-2 leading-tight">
+                    {game.name}
+                  </h3>
+                  <p className="text-white/90 text-sm sm:text-base leading-relaxed">
+                    {game.description}
+                  </p>
+
+                  {/* Status Badge */}
+                  {!enabled && (
+                    <div className="absolute bottom-4 left-6">
+                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-white/20 text-white">
+                        <Lock className="w-3 h-3 mr-1" />
+                        Bloqueado
                       </span>
                     </div>
-                  </div>
+                  )}
 
-                  {/* Card Content */}
-                  <div className="p-6">
-                    <h3 className="text-xl font-bold text-gray-800 mb-2 group-hover:text-primary transition-colors">
-                      {game.title}
-                    </h3>
-                    <p className="text-gray-600 text-sm mb-4">
-                      {game.description}
-                    </p>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center text-primary">
-                        <Trophy size={16} className="mr-1" />
-                        <span className="text-sm font-medium">Jogar Agora</span>
-                      </div>
-                      <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center group-hover:bg-primary group-hover:text-white transition-all">
-                        <ArrowLeft size={16} className="rotate-180" />
-                      </div>
+                  {/* Admin Badge */}
+                  {isAdmin && !enabled && (
+                    <div className="absolute bottom-4 right-6">
+                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-500/20 text-white">
+                        Admin
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Gradient Overlay */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent pointer-events-none" />
+                </div>
+
+                {/* Disabled Overlay */}
+                {!canAccess && (
+                  <div className="absolute inset-0 bg-black/40 rounded-xl sm:rounded-2xl flex items-center justify-center">
+                    <div className="text-center text-white">
+                      <Lock className="w-8 h-8 mx-auto mb-2" />
+                      <p className="text-sm font-medium">Jogo Bloqueado</p>
                     </div>
                   </div>
-                </div>
+                )}
               </motion.div>
-            ))}
-          </div>
+            );
+          })}
+        </div>
 
-          {/* Stats Section */}
+        {/* Admin Notice */}
+        {isAdmin && (
           <motion.div
+            className="mt-8 p-4 bg-blue-50 border border-blue-200 rounded-lg max-w-2xl mx-auto"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.4 }}
-            className="mt-16 bg-gradient-to-r from-primary/5 to-secondary/5 rounded-2xl p-8"
+            transition={{ duration: 0.6, delay: 0.8 }}
           >
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-center">
-              <div>
-                <div className="text-3xl font-bold text-primary mb-2">5</div>
-                <div className="text-gray-600">Jogos Disponíveis</div>
-              </div>
-              <div>
-                <div className="text-3xl font-bold text-primary mb-2">∞</div>
-                <div className="text-gray-600">Diversão Garantida</div>
-              </div>
-              <div>
-                <div className="text-3xl font-bold text-primary mb-2">100%</div>
-                <div className="text-gray-600">Gratuito</div>
-              </div>
-            </div>
+            <p className="text-blue-800 text-sm text-center">
+              <strong>Admin:</strong> Você pode acessar todos os jogos. 
+              Configure quais jogos estão liberados para os usuários nas configurações.
+            </p>
           </motion.div>
-        </div>
-      </main>
-
-      <Footer />
+        )}
+      </div>
     </div>
   );
 };

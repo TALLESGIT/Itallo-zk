@@ -152,7 +152,7 @@ const NumberGuessGame: React.FC<NumberGuessGameProps> = ({ onBack }) => {
                   disabled={gameStatus !== 'playing' || !guess.trim()}
                   className={`w-full sm:w-auto px-6 py-3 sm:py-2 rounded-lg transition-colors duration-200 font-medium ${
                     gameStatus === 'playing' && guess.trim()
-                      ? 'bg-primary text-white hover:bg-primary/90'
+                      ? 'bg-primary text-white hover:bg-primary/80'
                       : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                   }`}
                 >
@@ -233,7 +233,7 @@ const NumberGuessGame: React.FC<NumberGuessGameProps> = ({ onBack }) => {
               )}
               <button
                 onClick={startNewGame}
-                className="w-full sm:w-auto px-6 py-3 sm:py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors font-medium"
+                className="w-full sm:w-auto px-6 py-3 sm:py-2 bg-primary text-white rounded-lg hover:bg-primary/80 transition-colors font-medium"
               >
                 Jogar Novamente
               </button>
