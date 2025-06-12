@@ -372,7 +372,7 @@ const SettingsPage: React.FC = () => {
 
                   <button
                     type="submit"
-                    className="btn w-full py-3 text-lg mt-2 rounded-xl bg-primary hover:bg-primary/90 text-white font-bold shadow-md transition-all duration-200"
+                    className="btn w-full py-3 text-lg mt-2 rounded-xl bg-primary hover:bg-primary/80 text-white font-bold shadow-md transition-all duration-200"
                     disabled={isUpdating}
                   >
                     {isUpdating ? 'Atualizando...' : 'Salvar Alterações'}
@@ -501,7 +501,7 @@ const SettingsPage: React.FC = () => {
                     </p>
                     <button
                       onClick={openAddModal}
-                      className="inline-flex items-center px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
+                      className="inline-flex items-center px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/80 transition-colors"
                     >
                       <Plus size={16} className="mr-2" />
                       Nova Palavra
@@ -746,7 +746,7 @@ const SettingsPage: React.FC = () => {
                   </button>
                   <button
                     onClick={handleSaveWord}
-                    className="flex-1 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
+                    className="flex-1 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/80 transition-colors"
                   >
                     {editingWord ? 'Atualizar' : 'Adicionar'}
                   </button>
