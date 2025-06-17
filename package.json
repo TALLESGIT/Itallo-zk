@@ -22,7 +22,7 @@
     "@vitejs/plugin-react": "^4.2.0",
     "autoprefixer": "latest",
     "postcss": "latest",
-    "tailwindcss": "latest",
+    "tailwindcss": "^3.4.3",
     "typescript": "latest",
     "vite": "^5.2.10"
   },
