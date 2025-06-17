@@ -28,9 +28,10 @@ const RequestsPage: React.FC = () => {
   useEffect(() => {
     fetchRequests();
 
-    // Subscribe to changes
+    // Gerar um nome de canal único por instância para evitar erro de múltiplas inscrições
+    const uniqueChannelName = `schema-db-changes_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`;
     const channel = supabase
-      .channel('schema-db-changes')
+      .channel(uniqueChannelName)
       .on(
         'postgres_changes',
         {
