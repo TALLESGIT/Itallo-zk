@@ -105,14 +105,14 @@ export const useGameWinners = () => {
   useEffect(() => {
     fetchWinners();
 
-    // Escutar alterações em tempo real na tabela game_winners
+    // Gerar um nome de canal único por instância para evitar erro de múltiplas inscrições
+    const uniqueChannelName = `public:game_winners_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`;
     const channel = supabase
-      .channel('public:game_winners')
+      .channel(uniqueChannelName)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'game_winners' },
         (payload: any) => {
-          // Atualizar localmente sem esperar nova consulta
           setWinners(prev => {
             switch (payload.eventType) {
               case 'INSERT':
