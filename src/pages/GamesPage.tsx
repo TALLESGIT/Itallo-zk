@@ -16,6 +16,7 @@ import MemoryGame from '../components/games/MemoryGame';
 import QuizGame from '../components/games/QuizGame';
 import WordSearchGame from '../components/games/WordSearchGame';
 import HangmanGame from '../components/games/HangmanGame';
+import GameBannerAd from '../components/ui/GameBannerAd';
 
 import { useGameSettings } from '../hooks/useGameSettings';
 
@@ -115,7 +116,7 @@ const GamesPage: React.FC = () => {
               {game.description}
             </p>
           </div>
-          
+          <GameBannerAd />
           <GameComponent />
         </div>
       </div>

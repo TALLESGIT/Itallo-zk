@@ -4,6 +4,7 @@ import { Search, RotateCcw, Trophy, Clock, Target, CheckCircle, AlertCircle } fr
 import { useGameWinners } from '../../hooks/useGameWinners';
 import { supabase } from '../../lib/supabase';
 import { useGameSettings } from '../../hooks/useGameSettings';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface Position {
   row: number;
@@ -17,7 +18,8 @@ interface FoundWord {
 
 const WordSearchGame: React.FC = () => {
   const { addWinner } = useGameWinners();
-  const { isGameEnabled } = useGameSettings();
+  const { isGameEnabled, isAdmin } = useGameSettings();
+  const { authState } = useAuth();
   const [gameStarted, setGameStarted] = useState(false);
   const [gameCompleted, setGameCompleted] = useState(false);
   const [startTime, setStartTime] = useState<number>(0);
@@ -242,6 +244,15 @@ const WordSearchGame: React.FC = () => {
     return () => clearInterval(interval);
   }, [cooldownEnd]);
 
+  // Preencher automaticamente o nome do usuário autenticado
+  useEffect(() => {
+    if (authState.isAuthenticated && authState.user) {
+      // Se houver nome, usar. Senão, usar prefixo do e-mail
+      const userName = authState.user.user_metadata?.name || (authState.user.email ? authState.user.email.split('@')[0] : 'Usuário');
+      setPlayerName(userName);
+    }
+  }, [authState]);
+
   const startGame = () => {
     if (!gameEnabled) return;
     // Bloqueio por cooldown
@@ -375,10 +386,8 @@ const WordSearchGame: React.FC = () => {
   // Salvar pontuação
   const handleSaveScore = async () => {
     if (!playerName.trim()) return;
-
     const timeInSeconds = Math.floor(elapsedTime / 1000);
     const wordsFound = foundWords.length;
-
     await addWinner({
       game_id: 'word_search',
       player_name: playerName.trim(),
@@ -392,7 +401,6 @@ const WordSearchGame: React.FC = () => {
         completion_rate: Math.round((wordsFound / wordsToFind.length) * 100)
       }
     });
-
     setShowNameInput(false);
   };
 
@@ -432,6 +440,18 @@ const WordSearchGame: React.FC = () => {
     window.addEventListener('resize', calculateCellSize);
     return () => window.removeEventListener('resize', calculateCellSize);
   }, [gridSize]);
+
+  if (!isAdmin && typeof window !== 'undefined' && localStorage.getItem('hasSelectedNumber') !== 'true') {
+    return (
+      <div className="container mx-auto px-4 py-8 flex flex-col items-center justify-center min-h-[60vh]">
+        <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-6 text-center max-w-md">
+          <h2 className="text-xl font-bold text-yellow-800 mb-2">Acesso restrito</h2>
+          <p className="text-gray-700 mb-4">Apenas usuários cadastrados podem participar das brincadeiras.<br/>Escolha seu número e faça o cadastro para liberar o acesso!</p>
+          <a href="/" className="btn btn-primary">Ir para Cadastro</a>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-6xl mx-auto p-4">
@@ -476,6 +496,18 @@ const WordSearchGame: React.FC = () => {
           </p>
         </div>
       )}
+
+      {/* Instruções */}
+      <div className="bg-gray-50 rounded-xl p-4 sm:p-6 mt-6">
+        <h3 className="text-base sm:text-lg font-semibold text-gray-800 mb-3">Como Jogar:</h3>
+        <ul className="space-y-1 text-sm text-gray-700 mt-2">
+          <li>• Encontre todas as palavras escondidas no grid de letras</li>
+          <li>• Clique e arraste (ou toque duas vezes) para selecionar as palavras</li>
+          <li>• As palavras podem estar na horizontal, vertical ou diagonal</li>
+          <li>• Complete o desafio antes do tempo acabar</li>
+          <li>• O cronômetro limita o tempo para cada rodada</li>
+        </ul>
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         {/* Game Grid */}
@@ -622,7 +654,7 @@ const WordSearchGame: React.FC = () => {
             {gameStarted && (
               <button
                 onClick={resetGame}
-                className="w-full mt-4 flex items-center justify-center gap-2 bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg transition-colors"
+                className="inline-flex items-center px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors w-full mt-4 justify-center gap-2"
               >
                 <RotateCcw className="w-4 h-4" />
                 Reiniciar
@@ -654,31 +686,43 @@ const WordSearchGame: React.FC = () => {
               </div>
             </div>
 
-            <div className="space-y-4">
-              <input
-                type="text"
-                placeholder="Digite seu nome"
-                value={playerName}
-                onChange={(e) => setPlayerName(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                maxLength={50}
-              />
+            {/* Se usuário autenticado, não mostrar input, apenas botão de salvar */}
+            {authState.isAuthenticated ? (
               <div className="flex gap-3">
                 <button
                   onClick={handleSaveScore}
-                  disabled={!playerName.trim()}
-                  className="flex-1 bg-purple-500 hover:bg-purple-600 disabled:bg-gray-300 text-white px-4 py-2 rounded-lg font-semibold transition-colors"
+                  className="inline-flex items-center px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors flex-1 font-semibold justify-center"
                 >
                   Salvar Pontuação
                 </button>
-                <button
-                  onClick={() => setShowNameInput(false)}
-                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-                >
-                  Pular
-                </button>
               </div>
-            </div>
+            ) : (
+              <div className="space-y-4">
+                <input
+                  type="text"
+                  placeholder="Digite seu nome"
+                  value={playerName}
+                  onChange={(e) => setPlayerName(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  maxLength={50}
+                />
+                <div className="flex gap-3">
+                  <button
+                    onClick={handleSaveScore}
+                    disabled={!playerName.trim()}
+                    className="inline-flex items-center px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors flex-1 font-semibold justify-center"
+                  >
+                    Salvar Pontuação
+                  </button>
+                  <button
+                    onClick={() => setShowNameInput(false)}
+                    className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                  >
+                    Pular
+                  </button>
+                </div>
+              </div>
+            )}
           </motion.div>
         </div>
       )}
@@ -699,7 +743,7 @@ const WordSearchGame: React.FC = () => {
                 setShowTimeoutModal(false);
                 resetGame();
               }}
-              className="bg-purple-500 hover:bg-purple-600 text-white px-6 py-2 rounded-lg font-semibold"
+              className="inline-flex items-center px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors font-semibold"
             >
               Entendi
             </button>

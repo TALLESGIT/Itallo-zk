@@ -2,6 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowLeft, HelpCircle, Trophy, Clock, CheckCircle, X, Info } from 'lucide-react';
 import { toast } from 'react-toastify';
+import useGameCooldown from '../../hooks/useGameCooldown';
+import { useGameWinners } from '../../hooks/useGameWinners';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface QuizGameProps {
   onBack: () => void;
@@ -78,13 +81,18 @@ const QuizGame: React.FC<QuizGameProps> = ({ onBack }) => {
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
   const [score, setScore] = useState(0);
-  const [gameStatus, setGameStatus] = useState<'playing' | 'finished'>('playing');
+  const [gameStatus, setGameStatus] = useState<'playing' | 'finished' | 'lost'>('playing');
   const [timeLeft, setTimeLeft] = useState(30);
   const [showExplanation, setShowExplanation] = useState(false);
   const [userAnswers, setUserAnswers] = useState<number[]>([]);
 
+  const gameId = 'quiz_game';
+  const { isCoolingDown, setCooldown, CooldownMessage } = useGameCooldown(gameId);
+  const { addWinner } = useGameWinners();
+  const { authState } = useAuth();
+
   useEffect(() => {
-    if (gameStatus === 'playing' && timeLeft > 0) {
+    if (gameStatus === 'playing' && timeLeft > 0 && !isCoolingDown) {
       const timer = setTimeout(() => {
         setTimeLeft(timeLeft - 1);
       }, 1000);
@@ -92,22 +100,23 @@ const QuizGame: React.FC<QuizGameProps> = ({ onBack }) => {
     } else if (timeLeft === 0 && gameStatus === 'playing') {
       handleTimeUp();
     }
-  }, [timeLeft, gameStatus]);
+  }, [timeLeft, gameStatus, isCoolingDown]);
 
   const handleTimeUp = () => {
     if (selectedAnswer === null) {
-      handleAnswer(-1); // -1 indica que o tempo acabou sem resposta
+      handleAnswer(-1);
     }
   };
 
   const handleAnswer = (answerIndex: number) => {
-    if (selectedAnswer !== null) return;
+    if (selectedAnswer !== null || gameStatus !== 'playing' || isCoolingDown) return;
 
     setSelectedAnswer(answerIndex);
     const newUserAnswers = [...userAnswers, answerIndex];
     setUserAnswers(newUserAnswers);
 
-    if (answerIndex === questions[currentQuestion].correctAnswer) {
+    const isCorrect = (answerIndex === questions[currentQuestion].correctAnswer);
+    if (isCorrect) {
       setScore(score + 1);
     }
 
@@ -120,12 +129,30 @@ const QuizGame: React.FC<QuizGameProps> = ({ onBack }) => {
         setTimeLeft(30);
         setShowExplanation(false);
       } else {
-        setGameStatus('finished');
+        const finalScorePercentage = ((score + (isCorrect ? 1 : 0)) / questions.length) * 100;
+        if (finalScorePercentage < 40) {
+          setGameStatus('lost');
+          setCooldown(180);
+          toast.error('Que pena! Você não atingiu a pontuação mínima. Tente novamente após o cooldown.');
+        } else {
+          setGameStatus('finished');
+          addWinner?.({
+            game_id: 'quiz_game',
+            player_name: getPlayerName(),
+            score: score + (isCorrect ? 1 : 0),
+            time_taken: questions.length * 30 - timeLeft,
+            attempts: newUserAnswers.length,
+            difficulty: 'normal',
+            game_data: { answers: newUserAnswers },
+          });
+        }
       }
     }, 3000);
   };
 
   const resetGame = () => {
+    if (isCoolingDown) return;
+
     setCurrentQuestion(0);
     setSelectedAnswer(null);
     setScore(0);
@@ -152,87 +179,129 @@ const QuizGame: React.FC<QuizGameProps> = ({ onBack }) => {
     return 1;
   };
 
-  if (gameStatus === 'finished') {
+  const getPlayerName = () => {
+    if (authState.isAuthenticated && authState.user) {
+      return authState.user.user_metadata?.name || (authState.user.email ? authState.user.email.split('@')[0] : 'Usuário');
+    }
+    return 'Anônimo';
+  };
+
+  if (typeof window !== 'undefined' && localStorage.getItem('hasSelectedNumber') !== 'true') {
+    return (
+      <div className="container mx-auto px-4 py-8 flex flex-col items-center justify-center min-h-[60vh]">
+        <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-6 text-center max-w-md">
+          <h2 className="text-xl font-bold text-yellow-800 mb-2">Acesso restrito</h2>
+          <p className="text-gray-700 mb-4">Apenas usuários cadastrados podem participar das brincadeiras.<br/>Escolha seu número e faça o cadastro para liberar o acesso!</p>
+          <a href="/" className="btn btn-primary">Ir para Cadastro</a>
+        </div>
+      </div>
+    );
+  }
+
+  if (isCoolingDown) {
+    return (
+      <div className="container mx-auto px-2 sm:px-4 py-4 sm:py-8 flex items-center justify-center min-h-[50vh]">
+        <CooldownMessage />
+      </div>
+    );
+  }
+
+  if (gameStatus === 'finished' || gameStatus === 'lost') {
     return (
       <div className="container mx-auto px-2 sm:px-4 py-4 sm:py-8">
         <div className="max-w-2xl mx-auto">
-          <button
-            onClick={onBack}
-            className="inline-flex items-center text-primary hover:text-primary/80 mb-4 sm:mb-6 text-sm sm:text-base"
-          >
-            <ArrowLeft size={18} className="mr-1 sm:mr-2" />
-            <span className="hidden xs:inline">Voltar aos Jogos</span>
-            <span className="xs:hidden">Voltar</span>
-          </button>
-
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             className="bg-white rounded-xl shadow-lg p-4 sm:p-8 text-center"
           >
-            <div className="text-4xl sm:text-6xl mb-3 sm:mb-4">🎉</div>
-            <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-3 sm:mb-4">Quiz Finalizado!</h2>
-            
-            <div className="bg-gradient-to-r from-primary/10 to-secondary/10 rounded-xl p-4 sm:p-6 mb-4 sm:mb-6">
-              <div className="text-3xl sm:text-4xl font-bold text-primary mb-2">
-                {score}/{questions.length}
-              </div>
-              <div className="text-sm sm:text-base text-gray-600 mb-3 sm:mb-4">
-                {((score / questions.length) * 100).toFixed(0)}% de acertos
-              </div>
-              <div className="flex justify-center gap-1 mb-3 sm:mb-4">
-                {Array.from({ length: 5 }, (_, i) => (
-                  <span
-                    key={i}
-                    className={`text-xl sm:text-2xl ${i < getScoreStars() ? 'text-yellow-400' : 'text-gray-300'}`}
-                  >
-                    ⭐
-                  </span>
-                ))}
-              </div>
-              <p className="text-sm sm:text-base text-gray-700 font-medium px-2">{getScoreMessage()}</p>
-            </div>
-
-            <div className="space-y-2 sm:space-y-3 mb-4 sm:mb-6 max-h-48 sm:max-h-64 overflow-y-auto">
-              {questions.map((question, index) => (
-                <div
-                  key={question.id}
-                  className={`p-2 sm:p-3 rounded-lg border-2 ${
-                    userAnswers[index] === question.correctAnswer
-                      ? 'border-green-300 bg-green-50'
-                      : userAnswers[index] === -1
-                      ? 'border-yellow-300 bg-yellow-50'
-                      : 'border-red-300 bg-red-50'
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs sm:text-sm font-medium">
-                      Pergunta {index + 1}
-                    </span>
-                    <div className="flex items-center gap-1 sm:gap-2">
-                      {userAnswers[index] === question.correctAnswer ? (
-                        <CheckCircle className="text-green-500" size={14} />
-                      ) : userAnswers[index] === -1 ? (
-                        <Clock className="text-yellow-500" size={14} />
-                      ) : (
-                        <X className="text-red-500" size={14} />
-                      )}
-                      <span className="text-xs">
-                        {userAnswers[index] === question.correctAnswer
-                          ? 'Correto'
-                          : userAnswers[index] === -1
-                          ? 'Tempo esgotado'
-                          : 'Incorreto'}
-                      </span>
-                    </div>
+            {gameStatus === 'finished' ? (
+              <>
+                <div className="text-4xl sm:text-6xl mb-3 sm:mb-4">🎉</div>
+                <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-3 sm:mb-4">Quiz Finalizado!</h2>
+                
+                <div className="bg-gradient-to-r from-primary/10 to-secondary/10 rounded-xl p-4 sm:p-6 mb-4 sm:mb-6">
+                  <div className="text-3xl sm:text-4xl font-bold text-primary mb-2">
+                    {score}/{questions.length}
                   </div>
+                  <div className="text-sm sm:text-base text-gray-600 mb-3 sm:mb-4">
+                    {((score / questions.length) * 100).toFixed(0)}% de acertos
+                  </div>
+                  <div className="flex justify-center gap-1 mb-3 sm:mb-4">
+                    {Array.from({ length: 5 }, (_, i) => (
+                      <span
+                        key={i}
+                        className={`text-xl sm:text-2xl ${i < getScoreStars() ? 'text-yellow-400' : 'text-gray-300'}`}
+                      >
+                        ⭐
+                      </span>
+                    ))}
+                  </div>
+                  <p className="text-sm sm:text-base text-gray-700 font-medium px-2">{getScoreMessage()}</p>
                 </div>
-              ))}
-            </div>
+
+                <div className="space-y-2 sm:space-y-3 mb-4 sm:mb-6 max-h-48 sm:max-h-64 overflow-y-auto">
+                  {questions.map((question, index) => (
+                    <div
+                      key={question.id}
+                      className={`p-2 sm:p-3 rounded-lg border-2 ${
+                        userAnswers[index] === question.correctAnswer
+                          ? 'border-green-300 bg-green-50'
+                          : userAnswers[index] === -1
+                          ? 'border-yellow-300 bg-yellow-50'
+                          : 'border-red-300 bg-red-50'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs sm:text-sm font-medium">
+                          Pergunta {index + 1}
+                        </span>
+                        <div className="flex items-center gap-1 sm:gap-2">
+                          {userAnswers[index] === question.correctAnswer ? (
+                            <CheckCircle className="text-green-500" size={14} />
+                          ) : userAnswers[index] === -1 ? (
+                            <Clock className="text-yellow-500" size={14} />
+                          ) : (
+                            <X className="text-red-500" size={14} />
+                          )}
+                          <span className="text-xs">
+                            {userAnswers[index] === question.correctAnswer
+                              ? 'Correto'
+                              : userAnswers[index] === -1
+                              ? 'Tempo esgotado'
+                              : 'Incorreto'}
+                          </span>
+                        </div>
+                      </div>
+                      {userAnswers[index] !== question.correctAnswer && gameStatus !== 'lost' && question.explanation && (
+                        <motion.p
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: 'auto' }}
+                          className="text-xs text-gray-500 mt-2 p-1 bg-gray-100 rounded"
+                        >
+                          <Info size={12} className="inline mr-1" />
+                          Resposta: {question.options[question.correctAnswer]}<br/>
+                          Explicação: {question.explanation}
+                        </motion.p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="text-4xl sm:text-6xl mb-3 sm:mb-4">😔</div>
+                <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-3 sm:mb-4">Que pena!</h2>
+                <p className="text-sm sm:text-base text-gray-700 font-medium px-2 mb-6">
+                  Você não atingiu a pontuação mínima para este quiz. Tente novamente após o cooldown.
+                </p>
+              </>
+            )}
 
             <button
               onClick={resetGame}
-              className="w-full sm:w-auto px-6 py-3 sm:py-2 bg-primary text-white rounded-lg hover:bg-primary/80 transition-colors font-medium"
+              disabled={isCoolingDown}
+              className={`inline-flex items-center px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors${isCoolingDown ? ' opacity-50 cursor-not-allowed' : ''}`}
             >
               Jogar Novamente
             </button>
@@ -301,7 +370,7 @@ const QuizGame: React.FC<QuizGameProps> = ({ onBack }) => {
               <button
                 key={index}
                 onClick={() => handleAnswer(index)}
-                disabled={selectedAnswer !== null}
+                disabled={selectedAnswer !== null || isCoolingDown}
                 className={`w-full p-3 sm:p-4 text-left rounded-lg border-2 transition-all text-sm sm:text-base ${
                   selectedAnswer === null
                     ? 'border-gray-200 hover:border-primary hover:bg-primary/5'
@@ -338,7 +407,7 @@ const QuizGame: React.FC<QuizGameProps> = ({ onBack }) => {
           </div>
 
           {/* Explanation */}
-          {showExplanation && questions[currentQuestion].explanation && (
+          {showExplanation && selectedAnswer !== null && questions[currentQuestion].explanation && (
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
@@ -355,25 +424,28 @@ const QuizGame: React.FC<QuizGameProps> = ({ onBack }) => {
           )}
         </motion.div>
 
-        {/* Instructions */}
-        <div className="bg-gray-50 rounded-xl p-4 sm:p-6">
+        {/* Instruções */}
+        <div className="bg-gray-50 rounded-xl p-4 sm:p-6 mt-6">
           <h3 className="text-base sm:text-lg font-semibold text-gray-800 mb-3">Como Jogar:</h3>
-          <ul className="space-y-2 text-xs sm:text-sm text-gray-600">
-            <li className="text-gray-700">
-              • Responda cada pergunta dentro do tempo limite de 30 segundos
-            </li>
-            <li className="text-gray-700">
-              • Clique na alternativa que você considera correta
-            </li>
-            <li className="text-gray-700">
-              • Verde indica resposta correta, vermelho indica incorreta
-            </li>
-            <li className="text-gray-700">
-              • Sua pontuação final será baseada no número de acertos
-            </li>
-            <li className="text-gray-700">
-              • Quanto mais acertos, mais estrelas você ganha!
-            </li>
+          <div className="flex flex-col gap-2 mb-2">
+            <div className="flex items-center gap-2">
+              <span className="w-5 h-5 rounded bg-green-400 inline-block border border-green-500"></span>
+              <span className="text-sm text-gray-800">Verde: Resposta correta</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="w-5 h-5 rounded bg-red-400 inline-block border border-red-500"></span>
+              <span className="text-sm text-gray-800">Vermelho: Resposta incorreta</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="w-5 h-5 rounded bg-yellow-400 inline-block border border-yellow-500"></span>
+              <span className="text-sm text-gray-800">Amarelo: Tempo esgotado</span>
+            </div>
+          </div>
+          <ul className="space-y-1 text-sm text-gray-700 mt-2">
+            <li>• Responda cada pergunta dentro do tempo limite</li>
+            <li>• Clique na alternativa que você considera correta</li>
+            <li>• Sua pontuação final será baseada no número de acertos</li>
+            <li>• Quanto mais acertos, mais estrelas você ganha!</li>
           </ul>
         </div>
       </div>

@@ -351,3 +351,21 @@ export const deleteParticipant = async (id: number): Promise<{ success: boolean;
     return { success: false, reason: 'unexpected_error' };
   }
 };
+
+// Registra que o usuário completou um desafio
+export async function registerCompletion(userId: string, word: string) {
+  return await supabase
+    .from('word_search_completions')
+    .insert([{ user_id: userId, word }]);
+}
+
+// Consulta se o usuário já completou o desafio
+export async function hasCompleted(userId: string, word: string) {
+  const { data, error } = await supabase
+    .from('word_search_completions')
+    .select('id')
+    .eq('user_id', userId)
+    .eq('word', word)
+    .maybeSingle();
+  return !!data;
+}

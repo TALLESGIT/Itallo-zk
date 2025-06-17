@@ -384,24 +384,6 @@ const AdminGamesPage: React.FC = () => {
     <AdminLayout title="Brincadeiras">
       <div className="flex justify-center">
         <div className="w-full max-w-4xl">
-          {/* Botão de Debug para Atualizar Sessão */}
-          <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-sm font-medium text-yellow-800">Debug: Problemas com Exclusão?</h3>
-                <p className="text-xs text-yellow-700 mt-1">
-                  Se não conseguir excluir palavras, clique para atualizar suas permissões.
-                </p>
-              </div>
-              <button
-                onClick={refreshUserSession}
-                className="px-3 py-1 bg-yellow-500 text-white text-sm rounded hover:bg-yellow-600 transition-colors"
-              >
-                Atualizar Sessão
-              </button>
-            </div>
-          </div>
-          
           <div className="space-y-8">
             <div>
               <h2 className="text-xl font-semibold mb-4">Configurações de Jogo</h2>
@@ -517,66 +499,46 @@ const AdminGamesPage: React.FC = () => {
                   </div>
 
                   {wordSearchWords.length > 0 ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                       {wordSearchWords.map((word) => (
                         <div
                           key={word.id}
-                          className={`p-3 rounded-lg border-2 transition-all ${
-                            word.is_active 
-                              ? 'border-green-300 bg-green-50' 
-                              : 'border-gray-200 bg-gray-50'
-                          }`}
+                          className={`p-4 rounded-xl border transition-all shadow-sm bg-white flex flex-col min-h-[110px] justify-between relative
+                            ${word.is_active ? 'border-green-500 bg-green-300' : 'border-gray-200 bg-gray-50'}`}
                         >
-                          <div className="flex items-center justify-between">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2">
-                                <span className="font-bold text-sm text-gray-800">
-                                  {word.word}
-                                </span>
-                                {word.is_active && (
-                                  <span className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full">
-                                    ATIVA
-                                  </span>
-                                )}
-                              </div>
-                              {word.category && (
-                                <p className="text-xs text-gray-600 mt-1">
-                                  <strong>Categoria:</strong> {word.category}
-                                </p>
-                              )}
-                            </div>
-                            
-                            <div className="flex items-center gap-1">
-                              <button
-                                onClick={() => handleToggleSearchWord(word.id, word.is_active)}
-                                className={`p-1 text-xs rounded transition-colors ${
-                                  word.is_active 
-                                    ? 'text-red-600 hover:bg-red-50' 
-                                    : 'text-green-600 hover:bg-green-50'
-                                }`}
-                                title={word.is_active ? 'Desativar' : 'Ativar'}
-                              >
-                                {word.is_active ? <Lock size={14} /> : <Unlock size={14} />}
-                              </button>
-                              <button
-                                onClick={() => openEditSearchWordModal(word)}
-                                className="p-1 text-blue-600 hover:bg-blue-50 rounded transition-colors"
-                                title="Editar"
-                              >
-                                <Edit size={14} />
-                              </button>
-                              <button
-                                onClick={() => {
-                                  setWordToDelete(word);
-                                  setShowDeleteModal(true);
-                                }}
-                                className="p-1 text-red-600 hover:bg-red-50 rounded transition-colors"
-                                title="Excluir"
-                              >
-                                <Trash2 size={14} />
-                              </button>
-                            </div>
+                          <div className="flex items-center justify-center gap-2 mb-2 w-full">
+                            <button
+                              onClick={() => handleToggleSearchWord(word.id, word.is_active)}
+                              className={`p-1 rounded-full border border-transparent hover:border-green-200 transition-colors ${word.is_active ? 'text-red-500 hover:bg-red-50' : 'text-green-600 hover:bg-green-50'}`}
+                              title={word.is_active ? 'Desativar' : 'Ativar'}
+                            >
+                              {word.is_active ? <Lock size={16} /> : <Unlock size={16} />}
+                            </button>
+                            <button
+                              onClick={() => openEditSearchWordModal(word)}
+                              className="p-1 rounded-full text-blue-600 hover:bg-blue-50 transition-colors"
+                              title="Editar"
+                            >
+                              <Edit size={16} />
+                            </button>
+                            <button
+                              onClick={() => {
+                                setWordToDelete(word);
+                                setShowDeleteModal(true);
+                              }}
+                              className="p-1 rounded-full text-red-600 hover:bg-red-50 transition-colors"
+                              title="Excluir"
+                            >
+                              <Trash2 size={16} />
+                            </button>
                           </div>
+                          <div className="flex flex-col items-center justify-center mb-1 w-full">
+                            <span className="font-bold text-lg text-gray-800 text-center truncate w-full">{word.word.toUpperCase()}</span>
+                            {word.is_active && (
+                              <span className="mt-1 px-2 py-0.5 bg-green-100 text-green-700 text-xs rounded-full font-semibold whitespace-nowrap">ATIVA</span>
+                            )}
+                          </div>
+                          <span className="text-xs text-gray-500 font-medium block truncate text-center">Categoria: {word.category}</span>
                         </div>
                       ))}
                     </div>

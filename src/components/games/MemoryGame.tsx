@@ -2,6 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Star, Trophy, RotateCcw, Clock } from 'lucide-react';
 import { toast } from 'react-toastify';
+import useGameCooldown from '../../hooks/useGameCooldown';
+import { useGameSettings } from '../../hooks/useGameSettings';
+import { useGameWinners } from '../../hooks/useGameWinners';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface MemoryGameProps {
   onBack: () => void;
@@ -14,32 +18,57 @@ interface Card {
   isMatched: boolean;
 }
 
+type GameStatus = 'playing' | 'won' | 'lost';
+
+const emojis = ['🎮', '🎯', '🏆', '⭐', '🎲', '🎪', '🎨', '🎭'];
+const MAX_GAME_TIME = 180;
+
 const MemoryGame: React.FC<MemoryGameProps> = ({ onBack }) => {
   const [cards, setCards] = useState<Card[]>([]);
   const [flippedCards, setFlippedCards] = useState<number[]>([]);
   const [moves, setMoves] = useState(0);
   const [matches, setMatches] = useState(0);
-  const [gameStatus, setGameStatus] = useState<'playing' | 'won'>('playing');
+  const [gameStatus, setGameStatus] = useState<GameStatus>('playing');
   const [timeElapsed, setTimeElapsed] = useState(0);
   const [gameStarted, setGameStarted] = useState(false);
 
-  const emojis = ['🎮', '🎯', '🏆', '⭐', '🎲', '🎪', '🎨', '🎭'];
+  const gameId = 'memory_game';
+  const { isCoolingDown, setCooldown, CooldownMessage } = useGameCooldown(gameId);
+  const { isAdmin } = useGameSettings();
+  const { addWinner } = useGameWinners();
+  const { authState } = useAuth();
 
   useEffect(() => {
-    initializeGame();
-  }, []);
+    if (!isCoolingDown) {
+      initializeGame();
+    }
+  }, [isCoolingDown]);
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
-    if (gameStarted && gameStatus === 'playing') {
+    if (gameStarted && gameStatus === 'playing' && timeElapsed < MAX_GAME_TIME && !isCoolingDown) {
       interval = setInterval(() => {
-        setTimeElapsed(prev => prev + 1);
+        setTimeElapsed((prev) => {
+          if (prev + 1 >= MAX_GAME_TIME) {
+            setGameStatus('lost');
+            setCooldown(180);
+            toast.error(`Tempo esgotado! Tente novamente após o cooldown.`);
+            return MAX_GAME_TIME;
+          }
+          return prev + 1;
+        });
       }, 1000);
+    } else if (timeElapsed >= MAX_GAME_TIME && gameStatus === 'playing') {
+      setGameStatus('lost');
+      setCooldown(180);
+      toast.error(`Tempo esgotado! Tente novamente após o cooldown.`);
     }
     return () => clearInterval(interval);
-  }, [gameStarted, gameStatus]);
+  }, [gameStarted, gameStatus, timeElapsed, isCoolingDown, setCooldown]);
 
   const initializeGame = () => {
+    if (isCoolingDown) return;
+
     const shuffledEmojis = [...emojis, ...emojis]
       .sort(() => Math.random() - 0.5)
       .map((emoji, index) => ({
@@ -59,6 +88,8 @@ const MemoryGame: React.FC<MemoryGameProps> = ({ onBack }) => {
   };
 
   const handleCardClick = (cardId: number) => {
+    if (isCoolingDown || gameStatus !== 'playing') return;
+
     if (!gameStarted) {
       setGameStarted(true);
     }
@@ -91,14 +122,25 @@ const MemoryGame: React.FC<MemoryGameProps> = ({ onBack }) => {
               ? { ...c, isMatched: true }
               : c
           ));
-          setMatches(prev => prev + 1);
+          setMatches(prev => {
+            const newMatches = prev + 1;
+            // Check if game is won
+            if (newMatches === emojis.length && gameStatus === 'playing') {
+              setGameStatus('won');
+              toast.success(`Parabéns! Você completou o jogo em ${moves + 1} movimentos!`);
+              addWinner?.({
+                game_id: 'memory_game',
+                player_name: getPlayerName(),
+                score: Math.max(10, 200 - ((moves + 1 - 8) * 6) - Math.floor((timeElapsed + 1) / 2)),
+                time_taken: timeElapsed + 1,
+                attempts: moves + 1,
+                difficulty: 'normal',
+                game_data: { moves: moves + 1 },
+              });
+            }
+            return newMatches;
+          });
           setFlippedCards([]);
-          
-          // Check if game is won
-          if (matches + 1 === emojis.length) {
-            setGameStatus('won');
-            toast.success(`Parabéns! Você completou o jogo em ${moves + 1} movimentos!`);
-          }
         }, 500);
       } else {
         // No match
@@ -127,6 +169,33 @@ const MemoryGame: React.FC<MemoryGameProps> = ({ onBack }) => {
     if (moves <= 25) return 2;
     return 1;
   };
+
+  const getPlayerName = () => {
+    if (authState.isAuthenticated && authState.user) {
+      return authState.user.user_metadata?.name || (authState.user.email ? authState.user.email.split('@')[0] : 'Usuário');
+    }
+    return 'Anônimo';
+  };
+
+  if (!isAdmin && typeof window !== 'undefined' && localStorage.getItem('hasSelectedNumber') !== 'true') {
+    return (
+      <div className="container mx-auto px-4 py-8 flex flex-col items-center justify-center min-h-[60vh]">
+        <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-6 text-center max-w-md">
+          <h2 className="text-xl font-bold text-yellow-800 mb-2">Acesso restrito</h2>
+          <p className="text-gray-700 mb-4">Apenas usuários cadastrados podem participar das brincadeiras.<br/>Escolha seu número e faça o cadastro para liberar o acesso!</p>
+          <a href="/" className="btn btn-primary">Ir para Cadastro</a>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAdmin && isCoolingDown) {
+    return (
+      <div className="container mx-auto px-2 sm:px-4 py-4 sm:py-8 flex items-center justify-center min-h-[50vh]">
+        <CooldownMessage />
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto px-2 sm:px-4 py-4 sm:py-8">
@@ -157,13 +226,13 @@ const MemoryGame: React.FC<MemoryGameProps> = ({ onBack }) => {
             <div className="col-span-2 sm:col-span-1">
               <div className="text-lg sm:text-2xl font-bold text-primary flex items-center justify-center">
                 <Clock size={16} className="mr-1" />
-                {formatTime(timeElapsed)}
+                {formatTime(timeElapsed)} / {formatTime(MAX_GAME_TIME)}
               </div>
               <div className="text-xs sm:text-sm text-gray-600">Tempo</div>
             </div>
             <div className="hidden sm:block">
               <div className="text-lg sm:text-2xl font-bold text-primary">
-                {gameStatus === 'won' ? '🏆' : '🎯'}
+                {gameStatus === 'won' ? '🏆' : gameStatus === 'lost' ? '😔' : '🎯'}
               </div>
               <div className="text-xs sm:text-sm text-gray-600">Status</div>
             </div>
@@ -206,33 +275,48 @@ const MemoryGame: React.FC<MemoryGameProps> = ({ onBack }) => {
             ))}
           </div>
 
-          {/* Game Over */}
-          {gameStatus === 'won' && (
+          {/* Game Over / Lost Messages */}
+          {gameStatus !== 'playing' && (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               className="text-center space-y-3 sm:space-y-4 mt-6 sm:mt-8"
             >
-              <div className="text-4xl sm:text-6xl">🎉</div>
-              <h3 className="text-lg sm:text-xl font-bold text-gray-800">
-                Parabéns! Você completou o jogo!
-              </h3>
-              <p className="text-sm sm:text-base text-gray-600 px-2">
-                Você encontrou todos os pares em {moves} movimentos e {formatTime(timeElapsed)}!
-              </p>
-              <div className="flex justify-center gap-1">
-                {Array.from({ length: 5 }, (_, i) => (
-                  <span
-                    key={i}
-                    className={`text-xl sm:text-2xl ${i < getScoreStars(moves) ? 'text-yellow-400' : 'text-gray-300'}`}
-                  >
-                    ⭐
-                  </span>
-                ))}
-              </div>
+              {gameStatus === 'won' ? (
+                <>
+                  <div className="text-4xl sm:text-6xl">🎉</div>
+                  <h3 className="text-lg sm:text-xl font-bold text-gray-800">
+                    Parabéns! Você completou o jogo!
+                  </h3>
+                  <p className="text-sm sm:text-base text-gray-600 px-2">
+                    Você encontrou todos os pares em {moves} movimentos e {formatTime(timeElapsed)}!
+                  </p>
+                  <div className="flex justify-center gap-1">
+                    {Array.from({ length: 5 }, (_, i) => (
+                      <span
+                        key={i}
+                        className={`text-xl sm:text-2xl ${i < getScoreStars(moves) ? 'text-yellow-400' : 'text-gray-300'}`}
+                      >
+                        ⭐
+                      </span>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="text-4xl sm:text-6xl">😔</div>
+                  <h3 className="text-lg sm:text-xl font-bold text-gray-800">
+                    Que pena! O tempo esgotou.
+                  </h3>
+                  <p className="text-sm sm:text-base text-gray-600 px-2">
+                    Tente novamente após o cooldown.
+                  </p>
+                </>
+              )}
               <button
                 onClick={initializeGame}
-                className="w-full sm:w-auto px-6 py-3 sm:py-2 bg-primary text-white rounded-lg hover:bg-primary/80 transition-colors font-medium"
+                disabled={isCoolingDown}
+                className={`inline-flex items-center px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors${isCoolingDown ? ' opacity-50 cursor-not-allowed' : ''}`}
               >
                 Jogar Novamente
               </button>
@@ -240,25 +324,15 @@ const MemoryGame: React.FC<MemoryGameProps> = ({ onBack }) => {
           )}
         </div>
 
-        {/* Instructions */}
-        <div className="bg-gray-50 rounded-xl p-4 sm:p-6">
+        {/* Instruções */}
+        <div className="bg-gray-50 rounded-xl p-4 sm:p-6 mt-6">
           <h3 className="text-base sm:text-lg font-semibold text-gray-800 mb-3">Como Jogar:</h3>
-          <ul className="space-y-2 text-xs sm:text-sm text-gray-600">
-            <li className="text-gray-700">
-              • Clique nas cartas para virá-las e revelar os emojis
-            </li>
-            <li className="text-gray-700">
-              • Encontre os pares de cartas com o mesmo emoji
-            </li>
-            <li className="text-gray-700">
-              • Quando encontrar um par, as cartas permanecerão viradas
-            </li>
-            <li className="text-gray-700">
-              • Complete o jogo encontrando todos os {emojis.length} pares
-            </li>
-            <li className="text-gray-700">
-              • Quanto menos movimentos, mais estrelas você ganha!
-            </li>
+          <ul className="space-y-1 text-sm text-gray-700 mt-2">
+            <li>• Clique nas cartas para virá-las e revelar os emojis</li>
+            <li>• Encontre todos os pares de cartas iguais</li>
+            <li>• Complete o jogo antes do tempo acabar</li>
+            <li>• Quanto menos movimentos, mais estrelas você ganha!</li>
+            <li>• O cronômetro limita o tempo para cada rodada</li>
           </ul>
         </div>
       </div>

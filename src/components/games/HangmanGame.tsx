@@ -4,6 +4,9 @@ import { ArrowLeft, Frown, Smile, RotateCcw, Clock } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { supabase } from '../../lib/supabase';
 import { useGameWinners } from '../../hooks/useGameWinners';
+import useGameCooldown from '../../hooks/useGameCooldown';
+import { useGameSettings } from '../../hooks/useGameSettings';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface HangmanGameProps {
   onBack?: () => void; // Se usado isolado, pode não ter botão de voltar
@@ -15,6 +18,8 @@ const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
 
 const HangmanGame: React.FC<HangmanGameProps> = ({ onBack }) => {
   const { addWinner } = useGameWinners();
+  const { isAdmin } = useGameSettings();
+  const { authState } = useAuth();
 
   const [secretWord, setSecretWord] = useState<string>('');
   const [guessedLetters, setGuessedLetters] = useState<string[]>([]);
@@ -26,9 +31,13 @@ const HangmanGame: React.FC<HangmanGameProps> = ({ onBack }) => {
   const [timerActive, setTimerActive] = useState<boolean>(false);
   const [loading, setLoading] = useState(true);
 
+  const gameId = 'hangman_game';
+  const { isCoolingDown, setCooldown, CooldownMessage } = useGameCooldown(gameId);
+
   // Buscar palavra do banco ou fallback
   const fetchWord = async () => {
     try {
+      setLoading(true);
       const { data, error } = await supabase
         .from('game_words')
         .select('word')
@@ -37,40 +46,56 @@ const HangmanGame: React.FC<HangmanGameProps> = ({ onBack }) => {
       if (error) throw error;
       if (data && data.length > 0) {
         setSecretWord(data[0].word.toUpperCase());
+        setTimeLeft(INITIAL_TIME);
+        setTimerActive(true);
       } else {
         const fallback = ['DESENVOLVIMENTO', 'PROGRAMACAO', 'JAVASCRIPT', 'SUPABASE'];
         setSecretWord(fallback[Math.floor(Math.random() * fallback.length)]);
+        setTimeLeft(INITIAL_TIME);
+        setTimerActive(true);
       }
     } catch (err) {
       console.error(err);
       const fallback = ['HANGMAN', 'REACT', 'VITE', 'TYPESCRIPT'];
       setSecretWord(fallback[Math.floor(Math.random() * fallback.length)]);
+      setTimeLeft(INITIAL_TIME);
+      setTimerActive(true);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchWord();
-  }, []);
+    if (!isCoolingDown) {
+      fetchWord();
+    }
+  }, [isCoolingDown]);
 
   // Efetuar contagem regressiva
   useEffect(() => {
     let interval: NodeJS.Timeout;
-    if (timerActive && gameStatus === 'playing' && timeLeft > 0) {
+    if (timerActive && gameStatus === 'playing' && timeLeft > 0 && !isCoolingDown) {
       interval = setInterval(() => {
         setTimeLeft((prev) => {
           if (prev <= 1) {
             setGameStatus('lost');
-            toast.error(`Tempo esgotado! A palavra era ${secretWord}`);
+            setTimerActive(false);
+            setCooldown(180);
+            toast.error(`Tempo esgotado! Tente novamente após o cooldown.`);
             return 0;
           }
           return prev - 1;
         });
       }, 1000);
+    } else if (timeLeft === 0 && gameStatus === 'playing') {
+        setGameStatus('lost');
+        setTimerActive(false);
+        setCooldown(180);
+        toast.error(`Tempo esgotado! Tente novamente após o cooldown.`);
     }
+
     return () => clearInterval(interval);
-  }, [timerActive, gameStatus, timeLeft, secretWord]);
+  }, [timerActive, gameStatus, timeLeft, isCoolingDown, setCooldown]);
 
   // Verificar status a cada alteração
   useEffect(() => {
@@ -82,7 +107,7 @@ const HangmanGame: React.FC<HangmanGameProps> = ({ onBack }) => {
       toast.success('Parabéns! Você venceu 🎉');
       addWinner?.({
         game_id: 'hangman_game',
-        player_name: 'Anônimo',
+        player_name: isAdmin && authState.user?.email ? authState.user.email : 'Anônimo',
         score: Math.max(0, secretWord.length * 10 - wrongGuesses * 5),
         time_taken: 0,
         attempts: guessedLetters.length,
@@ -91,12 +116,13 @@ const HangmanGame: React.FC<HangmanGameProps> = ({ onBack }) => {
       });
     } else if (wrongGuesses >= maxWrong) {
       setGameStatus('lost');
-      toast.error(`Você perdeu! A palavra era ${secretWord}`);
+      setCooldown(180);
+      toast.error(`Você perdeu! Tente novamente após o cooldown.`);
     }
-  }, [guessedLetters, wrongGuesses, secretWord]);
+  }, [guessedLetters, wrongGuesses, secretWord, addWinner, setCooldown, isAdmin, authState]);
 
   const handleLetterClick = (letter: string) => {
-    if (gameStatus !== 'playing' || guessedLetters.includes(letter)) return;
+    if (gameStatus !== 'playing' || guessedLetters.includes(letter) || isCoolingDown) return;
 
     setGuessedLetters((prev) => [...prev, letter]);
     if (!secretWord.includes(letter)) {
@@ -105,6 +131,8 @@ const HangmanGame: React.FC<HangmanGameProps> = ({ onBack }) => {
   };
 
   const resetGame = () => {
+    if (isCoolingDown) return;
+
     setGuessedLetters([]);
     setWrongGuesses(0);
     setGameStatus('playing');
@@ -120,7 +148,7 @@ const HangmanGame: React.FC<HangmanGameProps> = ({ onBack }) => {
         key={idx}
         className="inline-block w-6 sm:w-8 md:w-10 border-b-2 border-gray-500 text-center text-lg sm:text-xl font-mono mr-1"
       >
-        {guessedLetters.includes(letter) || gameStatus !== 'playing' ? letter : ''}
+        {guessedLetters.includes(letter) || gameStatus === 'won' ? letter : ''}
       </span>
     ));
   };
@@ -163,12 +191,25 @@ const HangmanGame: React.FC<HangmanGameProps> = ({ onBack }) => {
     );
   };
 
-  // Iniciar timer após carregar palavra e quando jogo começar
-  useEffect(() => {
-    if (!loading && gameStatus === 'playing') {
-      setTimerActive(true);
-    }
-  }, [loading]);
+  if (!isAdmin && typeof window !== 'undefined' && localStorage.getItem('hasSelectedNumber') !== 'true') {
+    return (
+      <div className="container mx-auto px-4 py-8 flex flex-col items-center justify-center min-h-[60vh]">
+        <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-6 text-center max-w-md">
+          <h2 className="text-xl font-bold text-yellow-800 mb-2">Acesso restrito</h2>
+          <p className="text-gray-700 mb-4">Apenas usuários cadastrados podem participar das brincadeiras.<br/>Escolha seu número e faça o cadastro para liberar o acesso!</p>
+          <a href="/" className="btn btn-primary">Ir para Cadastro</a>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAdmin && isCoolingDown) {
+    return (
+      <div className="container mx-auto px-2 sm:px-4 py-4 sm:py-8 flex items-center justify-center min-h-[50vh]">
+        <CooldownMessage />
+      </div>
+    );
+  }
 
   if (loading) {
     return (
@@ -211,7 +252,7 @@ const HangmanGame: React.FC<HangmanGameProps> = ({ onBack }) => {
       {/* Alphabet buttons */}
       <div className="grid grid-cols-10 gap-1 sm:gap-2 justify-center mb-6">
         {alphabet.map((letter) => {
-          const disabled = guessedLetters.includes(letter) || gameStatus !== 'playing';
+          const disabled = guessedLetters.includes(letter) || gameStatus !== 'playing' || isCoolingDown;
           return (
             <button
               key={letter}
@@ -242,10 +283,31 @@ const HangmanGame: React.FC<HangmanGameProps> = ({ onBack }) => {
       <div className="flex justify-center gap-3">
         <button
           onClick={resetGame}
-          className="inline-flex items-center gap-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          className="inline-flex items-center px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors"
         >
           <RotateCcw size={18} /> Reiniciar
         </button>
+      </div>
+
+      {/* Instruções */}
+      <div className="bg-gray-50 rounded-xl p-4 sm:p-6 mt-6">
+        <h3 className="text-base sm:text-lg font-semibold text-gray-800 mb-3">Como Jogar:</h3>
+        <div className="flex flex-col gap-2 mb-2">
+          <div className="flex items-center gap-2">
+            <span className="w-5 h-5 rounded bg-green-400 inline-block border border-green-500"></span>
+            <span className="text-sm text-gray-800">Verde: Letra correta</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="w-5 h-5 rounded bg-gray-400 inline-block border border-gray-500"></span>
+            <span className="text-sm text-gray-800">Cinza: Letra já tentada/incorreta</span>
+          </div>
+        </div>
+        <ul className="space-y-1 text-sm text-gray-700 mt-2">
+          <li>• Clique nas letras para tentar adivinhar a palavra secreta</li>
+          <li>• Você tem {maxWrong} chances de errar antes de perder</li>
+          <li>• O cronômetro limita o tempo para cada rodada</li>
+          <li>• Ganhe se acertar todas as letras antes de acabar o tempo ou as tentativas</li>
+        </ul>
       </div>
     </div>
   );

@@ -3,6 +3,10 @@ import { motion } from 'framer-motion';
 import { ArrowLeft, Brain, Trophy, AlertCircle, CheckCircle, X, Clock } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { toast } from 'react-toastify';
+import useGameCooldown from '../../hooks/useGameCooldown';
+import { useGameSettings } from '../../hooks/useGameSettings';
+import { useGameWinners } from '../../hooks/useGameWinners';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface WordGuessGameProps {
   onBack: () => void;
@@ -18,35 +22,50 @@ const WordGuessGame: React.FC<WordGuessGameProps> = ({ onBack }) => {
   const [timeLeft, setTimeLeft] = useState<number>(59);
   const [timerActive, setTimerActive] = useState<boolean>(false);
 
+  const gameId = 'word_guess_game';
+  const { isCoolingDown, setCooldown, CooldownMessage } = useGameCooldown(gameId);
+  const { isAdmin } = useGameSettings();
+  const { addWinner } = useGameWinners();
+  const { authState } = useAuth();
+
   useEffect(() => {
-    fetchSecretWord();
-  }, []);
+    if (!isCoolingDown) {
+      fetchSecretWord();
+    }
+  }, [isCoolingDown]);
 
   // Timer effect
   useEffect(() => {
     let interval: NodeJS.Timeout;
     
-    if (timerActive && timeLeft > 0 && gameStatus === 'playing') {
+    if (timerActive && timeLeft > 0 && gameStatus === 'playing' && !isCoolingDown) {
       interval = setInterval(() => {
         setTimeLeft((prev) => {
           if (prev <= 1) {
             setGameStatus('lost');
             setTimerActive(false);
-            toast.error(`Tempo esgotado! A palavra era: ${secretWord}`);
+            setCooldown(180);
+            toast.error(`Tempo esgotado! Tente novamente após o cooldown.`);
             return 0;
           }
           return prev - 1;
         });
       }, 1000);
+    } else if (timeLeft === 0 && gameStatus === 'playing') {
+        setGameStatus('lost');
+        setTimerActive(false);
+        setCooldown(180);
+        toast.error(`Tempo esgotado! Tente novamente após o cooldown.`);
     }
 
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [timerActive, timeLeft, gameStatus, secretWord]);
+  }, [timerActive, timeLeft, gameStatus, isCoolingDown, setCooldown]);
 
   const fetchSecretWord = async () => {
     try {
+      setLoading(true);
       const { data, error } = await supabase
         .from('game_words')
         .select('word, hint')
@@ -62,12 +81,11 @@ const WordGuessGame: React.FC<WordGuessGameProps> = ({ onBack }) => {
       if (data && data.length > 0) {
         setSecretWord(data[0].word.toUpperCase());
         setHint(data[0].hint || '');
-        // Iniciar o timer quando a palavra for carregada
         setTimeLeft(59);
         setTimerActive(true);
       } else {
         console.log('Nenhuma palavra ativa encontrada');
-        // Não definir secretWord deixa o componente mostrar a mensagem de indisponível
+        setSecretWord('');
       }
     } catch (error) {
       console.error('Erro inesperado:', error);
@@ -77,7 +95,16 @@ const WordGuessGame: React.FC<WordGuessGameProps> = ({ onBack }) => {
     }
   };
 
+  const getPlayerName = () => {
+    if (authState.isAuthenticated && authState.user) {
+      return authState.user.user_metadata?.name || (authState.user.email ? authState.user.email.split('@')[0] : 'Usuário');
+    }
+    return 'Anônimo';
+  };
+
   const handleGuess = () => {
+    if (isCoolingDown || gameStatus !== 'playing') return;
+
     if (!guess.trim() || guess.length < 2) {
       toast.warning('Digite uma palavra válida (mínimo 2 letras).');
       return;
@@ -97,10 +124,20 @@ const WordGuessGame: React.FC<WordGuessGameProps> = ({ onBack }) => {
       setGameStatus('won');
       setTimerActive(false);
       toast.success('Parabéns! Você descobriu a palavra!');
+      addWinner?.({
+        game_id: 'word_guess',
+        player_name: getPlayerName(),
+        score: Math.max(0, 100 - (newAttempts.length - 1) * 20),
+        time_taken: 59 - timeLeft,
+        attempts: newAttempts.length,
+        difficulty: 'normal',
+        game_data: { word: secretWord },
+      });
     } else if (newAttempts.length >= 3) {
       setGameStatus('lost');
       setTimerActive(false);
-      toast.error(`Que pena! A palavra era: ${secretWord}`);
+      setCooldown(180);
+      toast.error(`Que pena! Tente novamente após o cooldown.`);
     } else {
       toast.info(`Tentativa ${newAttempts.length}/3. Continue tentando!`);
     }
@@ -109,6 +146,8 @@ const WordGuessGame: React.FC<WordGuessGameProps> = ({ onBack }) => {
   };
 
   const resetGame = () => {
+    if (isCoolingDown) return;
+
     setAttempts([]);
     setGameStatus('playing');
     setGuess('');
@@ -119,13 +158,25 @@ const WordGuessGame: React.FC<WordGuessGameProps> = ({ onBack }) => {
 
   const getLetterStatus = (letter: string, position: number, word: string) => {
     if (secretWord[position] === letter) {
-      return 'correct'; // Posição correta
+      return 'correct';
     } else if (secretWord.includes(letter)) {
-      return 'present'; // Letra existe mas posição errada
+      return 'present';
     } else {
-      return 'absent'; // Letra não existe
+      return 'absent';
     }
   };
+
+  if (!isAdmin && typeof window !== 'undefined' && localStorage.getItem('hasSelectedNumber') !== 'true') {
+    return (
+      <div className="container mx-auto px-4 py-8 flex flex-col items-center justify-center min-h-[60vh]">
+        <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-6 text-center max-w-md">
+          <h2 className="text-xl font-bold text-yellow-800 mb-2">Acesso restrito</h2>
+          <p className="text-gray-700 mb-4">Apenas usuários cadastrados podem participar das brincadeiras.<br/>Escolha seu número e faça o cadastro para liberar o acesso!</p>
+          <a href="/" className="btn btn-primary">Ir para Cadastro</a>
+        </div>
+      </div>
+    );
+  }
 
   if (loading) {
     return (
@@ -138,18 +189,18 @@ const WordGuessGame: React.FC<WordGuessGameProps> = ({ onBack }) => {
     );
   }
 
+  if (!isAdmin && isCoolingDown) {
+    return (
+      <div className="container mx-auto px-2 sm:px-4 py-4 sm:py-8 flex items-center justify-center min-h-[50vh]">
+        <CooldownMessage />
+      </div>
+    );
+  }
+
   if (!secretWord) {
     return (
       <div className="container mx-auto px-2 sm:px-4 py-4 sm:py-8">
         <div className="max-w-2xl mx-auto text-center">
-          <button
-            onClick={onBack}
-            className="inline-flex items-center text-primary hover:text-primary/80 mb-4 sm:mb-6 text-sm sm:text-base"
-          >
-            <ArrowLeft size={18} className="mr-1 sm:mr-2" />
-            <span className="hidden xs:inline">Voltar aos Jogos</span>
-            <span className="xs:hidden">Voltar</span>
-          </button>
           <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 sm:p-6">
             <AlertCircle className="mx-auto mb-3 sm:mb-4 text-yellow-600" size={40} />
             <h3 className="text-lg sm:text-xl font-bold text-yellow-800 mb-2">Jogo Indisponível</h3>
@@ -252,96 +303,87 @@ const WordGuessGame: React.FC<WordGuessGameProps> = ({ onBack }) => {
             </div>
           </div>
 
-          {/* Input Area - Sempre visível durante o jogo */}
-          <div className="space-y-3 sm:space-y-4 mb-4 sm:mb-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Digite sua tentativa:
-              </label>
-              <div className="flex flex-col sm:flex-row gap-2">
-                <input
-                  type="text"
-                  value={guess}
-                  onChange={(e) => setGuess(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && gameStatus === 'playing' && handleGuess()}
-                  className="flex-1 px-3 sm:px-4 py-3 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent text-base"
-                  placeholder={gameStatus === 'playing' ? "Digite uma palavra..." : "Jogo finalizado"}
-                  maxLength={20}
-                  autoComplete="off"
-                  autoCapitalize="characters"
-                  disabled={gameStatus !== 'playing'}
-                />
-                <button
-                  onClick={handleGuess}
-                  disabled={gameStatus !== 'playing' || !guess.trim() || timeLeft === 0}
-                  className={`w-full sm:w-auto px-6 py-3 sm:py-2 rounded-lg transition-colors duration-200 font-medium ${
-                    gameStatus === 'playing' && guess.trim() && timeLeft > 0
-                      ? 'bg-primary text-white hover:bg-primary/80'
-                      : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                  }`}
-                >
-                  {gameStatus === 'playing' && timeLeft > 0 ? 'Tentar' : 'Finalizado'}
-                </button>
-              </div>
+          {/* Input and Button */}
+          {(gameStatus === 'playing' && !isCoolingDown) && (
+            <div className="flex flex-col sm:flex-row gap-3">
+              <input
+                type="text"
+                value={guess}
+                onChange={(e) => setGuess(e.target.value)}
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter') {
+                    handleGuess();
+                  }
+                }}
+                placeholder="Digite sua palavra..."
+                className="flex-grow p-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-gray-800"
+                maxLength={secretWord.length}
+                disabled={gameStatus !== 'playing'}
+              />
+              <button
+                onClick={handleGuess}
+                className="inline-flex items-center px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors"
+                disabled={gameStatus !== 'playing'}
+              >
+                <Trophy className="mr-2" size={20} />
+                Adivinhar
+              </button>
             </div>
-          </div>
+          )}
 
-          {/* Game Over */}
-          {gameStatus !== 'playing' && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="text-center space-y-3 sm:space-y-4"
-            >
-              <div className={`text-4xl sm:text-6xl ${gameStatus === 'won' ? 'text-green-500' : 'text-red-500'}`}>
-                {gameStatus === 'won' ? '🎉' : '😔'}
-              </div>
-              <h3 className="text-lg sm:text-xl font-bold text-gray-800">
-                {gameStatus === 'won' ? 'Parabéns!' : 'Que pena!'}
-              </h3>
-              <p className="text-sm sm:text-base text-gray-600 px-2">
-                {gameStatus === 'won' 
-                  ? `Você descobriu a palavra "${secretWord}" em ${attempts.length} tentativa${attempts.length > 1 ? 's' : ''} e ${59 - timeLeft} segundos!`
-                  : timeLeft === 0 
-                    ? `Tempo esgotado! A palavra era "${secretWord}". Tente novamente!`
-                    : `A palavra era "${secretWord}". Tente novamente!`
-                }
-              </p>
+          {/* Game Over / Win */}
+          {(gameStatus !== 'playing' && !isCoolingDown) && (
+            <div className="text-center mt-6">
+              {gameStatus === 'won' ? (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="p-4 bg-green-50 border border-green-200 text-green-800 rounded-lg"
+                >
+                  <CheckCircle className="mx-auto mb-2" size={30} />
+                  <p className="font-bold">Parabéns! Você venceu!</p>
+                </motion.div>
+              ) : (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="p-4 bg-red-50 border border-red-200 text-red-800 rounded-lg"
+                >
+                  <X className="mx-auto mb-2" size={30} />
+                  <p className="font-bold">Que pena! Você perdeu.</p>
+                </motion.div>
+              )}
               <button
                 onClick={resetGame}
-                className="w-full sm:w-auto px-6 py-3 sm:py-2 bg-primary text-white rounded-lg hover:bg-primary/80 transition-colors font-medium"
+                className="inline-flex items-center px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors mt-4"
               >
                 Jogar Novamente
               </button>
-            </motion.div>
+            </div>
           )}
         </div>
 
-        {/* Instructions */}
-        <div className="bg-gray-50 rounded-xl p-4 sm:p-6">
+        {/* Instruções */}
+        <div className="bg-gray-50 rounded-xl p-4 sm:p-6 mt-6">
           <h3 className="text-base sm:text-lg font-semibold text-gray-800 mb-3">Como Jogar:</h3>
-          <ul className="space-y-2 text-xs sm:text-sm text-gray-600">
-            <li className="flex items-center">
-              <div className="w-3 h-3 sm:w-4 sm:h-4 bg-green-500 rounded mr-2 sm:mr-3 flex-shrink-0"></div>
-              <span className="text-gray-700">Verde: Letra correta na posição certa</span>
-            </li>
-            <li className="flex items-center">
-              <div className="w-3 h-3 sm:w-4 sm:h-4 bg-yellow-500 rounded mr-2 sm:mr-3 flex-shrink-0"></div>
-              <span className="text-gray-700">Amarelo: Letra existe mas na posição errada</span>
-            </li>
-            <li className="flex items-center">
-              <div className="w-3 h-3 sm:w-4 sm:h-4 bg-gray-400 rounded mr-2 sm:mr-3 flex-shrink-0"></div>
-              <span className="text-gray-700">Cinza: Letra não existe na palavra</span>
-            </li>
-            <li className="mt-2 sm:mt-3 text-gray-700">
-              • Você tem 3 tentativas e 59 segundos para descobrir a palavra
-            </li>
-            <li className="text-gray-700">
-              • Use as dicas de cores para ajudar nas próximas tentativas
-            </li>
-            <li className="text-gray-700">
-              • O cronômetro impede consultas externas para manter o desafio justo
-            </li>
+          <div className="flex flex-col gap-2 mb-2">
+            <div className="flex items-center gap-2">
+              <span className="w-5 h-5 rounded bg-green-400 inline-block border border-green-500"></span>
+              <span className="text-sm text-gray-800">Verde: Letra correta na posição certa</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="w-5 h-5 rounded bg-yellow-400 inline-block border border-yellow-500"></span>
+              <span className="text-sm text-gray-800">Amarelo: Letra existe mas na posição errada</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="w-5 h-5 rounded bg-gray-400 inline-block border border-gray-500"></span>
+              <span className="text-sm text-gray-800">Cinza: Letra não existe na palavra</span>
+            </div>
+          </div>
+          <ul className="space-y-1 text-sm text-gray-700 mt-2">
+            <li>• Você tem 3 tentativas e 59 segundos para descobrir a palavra</li>
+            <li>• Use as dicas de cores para ajudar nas próximas tentativas</li>
+            <li>• O cronômetro impede consultas externas para manter o desafio justo</li>
           </ul>
         </div>
       </div>

@@ -15,6 +15,7 @@ export interface AuthState {
 }
 
 export interface AppState {
+  drawDate: string;
   participants: Participant[];
   selectedNumbers: number[];
   isDrawComplete: boolean;

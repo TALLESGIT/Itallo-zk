@@ -3,6 +3,10 @@ import { motion } from 'framer-motion';
 import { ArrowLeft, Zap, Trophy, TrendingUp, TrendingDown, Target, AlertCircle } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { supabase } from '../../lib/supabase';
+import useGameCooldown from '../../hooks/useGameCooldown';
+import { useGameSettings } from '../../hooks/useGameSettings';
+import { useGameWinners } from '../../hooks/useGameWinners';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface NumberGuessGameProps {
   onBack: () => void;
@@ -15,36 +19,32 @@ const NumberGuessGame: React.FC<NumberGuessGameProps> = ({ onBack }) => {
   const [gameStatus, setGameStatus] = useState<'playing' | 'won' | 'lost'>('playing');
   const [range, setRange] = useState({ min: 1, max: 100 });
 
-  // === Tentativas e cooldown ===
   const MAX_ATTEMPTS = 3;
-  const COOLDOWN_MS = 15 * 60 * 1000; // 15 minutos
-  const [showTimeoutModal, setShowTimeoutModal] = useState(false);
-  const [cooldownEnd, setCooldownEnd] = useState<number | null>(null);
-  const [cooldownRemaining, setCooldownRemaining] = useState(0);
+  
+  const gameId = 'number_guess_game';
+  const { isCoolingDown, setCooldown, CooldownMessage } = useGameCooldown(gameId);
+  const { isAdmin } = useGameSettings();
+  const { addWinner } = useGameWinners();
+  const { authState } = useAuth();
 
-  // Carregar cooldown salvo
   useEffect(() => {
-    const stored = localStorage.getItem('number_guess_cooldown_end');
-    if (stored) {
-      const end = parseInt(stored, 10);
-      if (!isNaN(end) && end > Date.now()) {
-        setCooldownEnd(end);
-        setCooldownRemaining(end - Date.now());
-      }
+    if (!isCoolingDown) {
+      fetchSecretAndStart();
     }
 
-    const interval = setInterval(() => {
-      if (cooldownEnd) {
-        const remaining = cooldownEnd - Date.now();
-        if (remaining <= 0) {
-          setCooldownEnd(null);
-          localStorage.removeItem('number_guess_cooldown_end');
+    const channel = supabase
+      .channel('public:number_guess_config')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'number_guess_config' }, payload => {
+        if (payload.new?.secret) {
+          setSecretNumber(payload.new.secret);
         }
-        setCooldownRemaining(Math.max(0, remaining));
-      }
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [cooldownEnd]);
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [isCoolingDown]);
 
   const fetchSecretAndStart = async () => {
     try {
@@ -59,11 +59,13 @@ const NumberGuessGame: React.FC<NumberGuessGameProps> = ({ onBack }) => {
         setSecretNumber(data.secret);
       } else {
         toast.error('Jogo indisponível: número não configurado.');
+        setSecretNumber(0);
         return;
       }
     } catch (err) {
       console.error(err);
       toast.error('Erro ao carregar número secreto.');
+      setSecretNumber(0);
       return;
     }
 
@@ -74,25 +76,9 @@ const NumberGuessGame: React.FC<NumberGuessGameProps> = ({ onBack }) => {
   };
 
   const startNewGame = () => {
+    if (isCoolingDown) return;
     fetchSecretAndStart();
   };
-
-  useEffect(() => {
-    fetchSecretAndStart();
-
-    const channel = supabase
-      .channel('public:number_guess_config')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'number_guess_config' }, payload => {
-        if (payload.new?.secret) {
-          setSecretNumber(payload.new.secret);
-        }
-      })
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, []);
 
   const getHint = (guessNum: number, secret: number): string => {
     const diff = Math.abs(guessNum - secret);
@@ -105,6 +91,8 @@ const NumberGuessGame: React.FC<NumberGuessGameProps> = ({ onBack }) => {
   };
 
   const handleGuess = () => {
+    if (isCoolingDown || gameStatus !== 'playing') return;
+
     const guessNum = parseInt(guess);
     
     if (isNaN(guessNum) || guessNum < 1 || guessNum > 100) {
@@ -133,15 +121,19 @@ const NumberGuessGame: React.FC<NumberGuessGameProps> = ({ onBack }) => {
     if (guessNum === secretNumber) {
       setGameStatus('won');
       toast.success(`Parabéns! Você descobriu o número em ${newAttempts.length} tentativa${newAttempts.length > 1 ? 's' : ''}!`);
+      addWinner?.({
+        game_id: 'number_guess',
+        player_name: getPlayerName(),
+        score: Math.max(0, 100 - (newAttempts.length - 1) * 30),
+        time_taken: newAttempts.length,
+        attempts: newAttempts.length,
+        difficulty: 'normal',
+        game_data: { number: secretNumber },
+      });
     } else if (newAttempts.length >= MAX_ATTEMPTS) {
       setGameStatus('lost');
-      toast.error(`Que pena! O número era ${secretNumber}.`);
-
-      // Set cooldown if lost
-      const end = Date.now() + COOLDOWN_MS;
-      setCooldownEnd(end);
-      localStorage.setItem('number_guess_cooldown_end', end.toString());
-      setShowTimeoutModal(true);
+      setCooldown(180);
+      toast.error(`Que pena! Você atingiu o limite de tentativas. Tente novamente após o cooldown.`);
     }
 
     setGuess('');
@@ -154,6 +146,33 @@ const NumberGuessGame: React.FC<NumberGuessGameProps> = ({ onBack }) => {
     if (attempts <= 9) return 2;
     return 1;
   };
+
+  const getPlayerName = () => {
+    if (authState.isAuthenticated && authState.user) {
+      return authState.user.user_metadata?.name || (authState.user.email ? authState.user.email.split('@')[0] : 'Usuário');
+    }
+    return 'Anônimo';
+  };
+
+  if (!isAdmin && typeof window !== 'undefined' && localStorage.getItem('hasSelectedNumber') !== 'true') {
+    return (
+      <div className="container mx-auto px-4 py-8 flex flex-col items-center justify-center min-h-[60vh]">
+        <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-6 text-center max-w-md">
+          <h2 className="text-xl font-bold text-yellow-800 mb-2">Acesso restrito</h2>
+          <p className="text-gray-700 mb-4">Apenas usuários cadastrados podem participar das brincadeiras.<br/>Escolha seu número e faça o cadastro para liberar o acesso!</p>
+          <a href="/" className="btn btn-primary">Ir para Cadastro</a>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAdmin && isCoolingDown) {
+    return (
+      <div className="container mx-auto px-2 sm:px-4 py-4 sm:py-8 flex items-center justify-center min-h-[50vh]">
+        <CooldownMessage />
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto px-2 sm:px-4 py-4 sm:py-8">
@@ -207,16 +226,12 @@ const NumberGuessGame: React.FC<NumberGuessGameProps> = ({ onBack }) => {
                   placeholder={gameStatus === 'playing' ? "Digite um número..." : "Jogo finalizado"}
                   min={range.min}
                   max={range.max}
-                  disabled={gameStatus !== 'playing' || (cooldownEnd && cooldownEnd > Date.now()) || secretNumber === 0}
+                  disabled={gameStatus !== 'playing' || isCoolingDown || secretNumber === 0}
                 />
                 <button
                   onClick={handleGuess}
-                  disabled={gameStatus !== 'playing' || !guess.trim() || (cooldownEnd && cooldownEnd > Date.now()) || secretNumber === 0}
-                  className={`w-full sm:w-auto px-6 py-3 sm:py-2 rounded-lg transition-colors duration-200 font-medium ${
-                    gameStatus === 'playing' && guess.trim()
-                      ? 'bg-primary text-white hover:bg-primary/80'
-                      : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                  }`}
+                  disabled={gameStatus !== 'playing' || !guess.trim() || isCoolingDown || secretNumber === 0}
+                  className={`inline-flex items-center px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors${gameStatus !== 'playing' || !guess.trim() || isCoolingDown || secretNumber === 0 ? ' opacity-50 cursor-not-allowed' : ''}`}
                 >
                   {gameStatus === 'playing' ? 'Tentar' : 'Finalizado'}
                 </button>
@@ -248,13 +263,7 @@ const NumberGuessGame: React.FC<NumberGuessGameProps> = ({ onBack }) => {
                       {attempt.hint.includes('Maior') && <TrendingUp className="text-green-500" size={16} />}
                       {attempt.hint.includes('Menor') && <TrendingDown className="text-red-500" size={16} />}
                       {attempt.hint === 'Acertou!' && <Target className="text-green-500" size={16} />}
-                      <span className={`text-xs sm:text-sm font-medium ${
-                        attempt.hint === 'Acertou!' ? 'text-green-600' :
-                        attempt.hint.includes('próximo') ? 'text-orange-600' :
-                        'text-gray-600'
-                      }`}>
-                        {attempt.hint}
-                      </span>
+                      <span className="text-xs sm:text-sm text-gray-600">{attempt.hint}</span>
                     </div>
                   </motion.div>
                 ))}
@@ -262,94 +271,65 @@ const NumberGuessGame: React.FC<NumberGuessGameProps> = ({ onBack }) => {
             </div>
           )}
 
-          {/* Game Over */}
-          {gameStatus !== 'playing' && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="text-center space-y-3 sm:space-y-4"
-            >
-              <div className={`text-4xl sm:text-6xl ${gameStatus === 'won' ? 'text-green-500' : 'text-red-500'}`}>
-                {gameStatus === 'won' ? '🎉' : '😔'}
-              </div>
-              <h3 className="text-lg sm:text-xl font-bold text-gray-800">
-                {gameStatus === 'won' ? 'Parabéns!' : 'Que pena!'}
-              </h3>
-              <p className="text-sm sm:text-base text-gray-600 px-2">
-                {gameStatus === 'won' 
-                  ? `Você descobriu o número ${secretNumber} em ${attempts.length} tentativa${attempts.length > 1 ? 's' : ''}!`
-                  : `O número era ${secretNumber}. Tente novamente!`
-                }
-              </p>
-              {gameStatus === 'won' && (
-                <div className="flex justify-center gap-1">
-                  {Array.from({ length: 5 }, (_, i) => (
-                    <span
-                      key={i}
-                      className={`text-xl sm:text-2xl ${i < getScoreStars(attempts.length) ? 'text-yellow-400' : 'text-gray-300'}`}
-                    >
-                      ⭐
-                    </span>
-                  ))}
-                </div>
+          {/* Game Over / Win */}
+          {(gameStatus !== 'playing' && !isCoolingDown) && (
+            <div className="text-center mt-6">
+              {gameStatus === 'won' ? (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="p-4 bg-green-50 border border-green-200 text-green-800 rounded-lg"
+                >
+                  <Trophy className="mx-auto mb-2" size={30} />
+                  <p className="font-bold">Parabéns! Você venceu!</p>
+                  <p className="text-sm text-gray-700">Você encontrou o número em {attempts.length} tentativa{attempts.length > 1 ? 's' : ''}.</p>
+                </motion.div>
+              ) : (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="p-4 bg-red-50 border border-red-200 text-red-800 rounded-lg"
+                >
+                  <AlertCircle className="mx-auto mb-2" size={30} />
+                  <p className="font-bold">Que pena! Você perdeu.</p>
+                  <p className="text-sm text-gray-700">Você atingiu o limite de tentativas.</p>
+                </motion.div>
               )}
               <button
-                onClick={() => {
-                  setShowTimeoutModal(false);
-                  startNewGame();
-                }}
-                className="w-full sm:w-auto px-6 py-3 sm:py-2 bg-primary text-white rounded-lg hover:bg-primary/80 transition-colors font-medium"
+                onClick={startNewGame}
+                disabled={isCoolingDown}
+                className={`inline-flex items-center px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors${isCoolingDown ? ' opacity-50 cursor-not-allowed' : ''}`}
               >
                 Jogar Novamente
               </button>
-            </motion.div>
+            </div>
           )}
         </div>
 
-        {/* Instructions */}
-        <div className="bg-gray-50 rounded-xl p-4 sm:p-6">
+        {/* Instruções */}
+        <div className="bg-gray-50 rounded-xl p-4 sm:p-6 mt-6">
           <h3 className="text-base sm:text-lg font-semibold text-gray-800 mb-3">Como Jogar:</h3>
-          <ul className="space-y-2 text-xs sm:text-sm text-gray-600">
-            <li className="flex items-center">
-              <TrendingUp className="text-green-500 mr-2 sm:mr-3 flex-shrink-0" size={14} />
-              <span className="text-gray-700">Seta para cima: O número secreto é maior</span>
-            </li>
-            <li className="flex items-center">
-              <TrendingDown className="text-red-500 mr-2 sm:mr-3 flex-shrink-0" size={14} />
-              <span className="text-gray-700">Seta para baixo: O número secreto é menor</span>
-            </li>
-            <li className="flex items-center">
-              <Target className="text-green-500 mr-2 sm:mr-3 flex-shrink-0" size={14} />
-              <span className="text-gray-700">Alvo: Você acertou!</span>
-            </li>
-            <li className="mt-2 sm:mt-3 text-gray-700">
-              • Você tem {MAX_ATTEMPTS} tentativas para descobrir o número
-            </li>
-            <li className="text-gray-700">
-              • Use as dicas para estreitar o intervalo de busca
-            </li>
-            <li className="text-gray-700">
-              • Quanto menos tentativas, mais estrelas você ganha!
-            </li>
+          <div className="flex flex-col gap-2 mb-2">
+            <div className="flex items-center gap-2">
+              <span className="w-5 h-5 rounded bg-green-400 inline-block border border-green-500"></span>
+              <span className="text-sm text-gray-800">Verde: Acertou o número</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="w-5 h-5 rounded bg-blue-400 inline-block border border-blue-500"></span>
+              <span className="text-sm text-gray-800">Azul: Dica - tente um número maior</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="w-5 h-5 rounded bg-red-400 inline-block border border-red-500"></span>
+              <span className="text-sm text-gray-800">Vermelho: Dica - tente um número menor</span>
+            </div>
+          </div>
+          <ul className="space-y-1 text-sm text-gray-700 mt-2">
+            <li>• Você tem {MAX_ATTEMPTS} tentativas para acertar o número secreto</li>
+            <li>• O intervalo de números é atualizado a cada tentativa</li>
+            <li>• Use as dicas de cor para ajustar seu próximo palpite</li>
+            <li>• O cronômetro limita o tempo para cada rodada</li>
           </ul>
         </div>
-
-        {/* Timeout Modal */}
-        {showTimeoutModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <motion.div className="bg-white rounded-xl p-6 max-w-md w-full text-center" initial={{scale:0.9,opacity:0}} animate={{scale:1,opacity:1}}>
-              <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
-              <h3 className="text-2xl font-bold text-gray-800 mb-2">Tentativas esgotadas</h3>
-              <p className="text-gray-600 mb-6">Tente novamente em alguns minutos!</p>
-              <button
-                onClick={() => setShowTimeoutModal(false)}
-                className="bg-primary hover:bg-primary/80 text-white px-6 py-2 rounded-lg font-semibold"
-              >
-                Entendi
-              </button>
-            </motion.div>
-          </div>
-        )}
       </div>
     </div>
   );

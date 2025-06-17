@@ -1,5 +1,8 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
+import { useGameSettings } from '../../hooks/useGameSettings';
+import { useGameWinners } from '../../hooks/useGameWinners';
+import { useAuth } from '../../contexts/AuthContext';
 
 type Choice = 'rock' | 'paper' | 'scissors';
 type GameResult = 'win' | 'lose' | 'draw';
@@ -17,6 +20,10 @@ const RockPaperScissors: React.FC = () => {
   const [score, setScore] = useState({ wins: 0, losses: 0, draws: 0 });
   const [history, setHistory] = useState<GameHistory[]>([]);
   const [isPlaying, setIsPlaying] = useState(false);
+
+  const { isAdmin } = useGameSettings();
+  const { addWinner } = useGameWinners();
+  const { authState } = useAuth();
 
   const choices: { value: Choice; emoji: string; name: string }[] = [
     { value: 'rock', emoji: '🪨', name: 'Pedra' },
@@ -66,6 +73,18 @@ const RockPaperScissors: React.FC = () => {
     // Adicionar ao histórico
     setHistory(prev => [...prev, { playerChoice: choice, computerChoice, result: gameResult }].slice(-10));
     
+    if (gameResult === 'win') {
+      addWinner?.({
+        game_id: 'rock_paper_scissors',
+        player_name: getPlayerName(),
+        score: score.wins + 1,
+        time_taken: 0,
+        attempts: score.wins + score.losses + score.draws + 1,
+        difficulty: 'normal',
+        game_data: { history: [...history, { playerChoice: choice, computerChoice, result: gameResult }] },
+      });
+    }
+    
     setIsPlaying(false);
   };
 
@@ -104,6 +123,25 @@ const RockPaperScissors: React.FC = () => {
         return 'text-gray-600';
     }
   };
+
+  const getPlayerName = () => {
+    if (authState.isAuthenticated && authState.user) {
+      return authState.user.user_metadata?.name || (authState.user.email ? authState.user.email.split('@')[0] : 'Usuário');
+    }
+    return 'Anônimo';
+  };
+
+  if (!isAdmin && typeof window !== 'undefined' && localStorage.getItem('hasSelectedNumber') !== 'true') {
+    return (
+      <div className="container mx-auto px-4 py-8 flex flex-col items-center justify-center min-h-[60vh]">
+        <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-6 text-center max-w-md">
+          <h2 className="text-xl font-bold text-yellow-800 mb-2">Acesso restrito</h2>
+          <p className="text-gray-700 mb-4">Apenas usuários cadastrados podem participar das brincadeiras.<br/>Escolha seu número e faça o cadastro para liberar o acesso!</p>
+          <a href="/" className="btn btn-primary">Ir para Cadastro</a>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-4xl mx-auto">
@@ -223,10 +261,35 @@ const RockPaperScissors: React.FC = () => {
         <div className="text-center">
           <button
             onClick={resetGame}
-            className="w-full sm:w-auto px-6 py-3 sm:py-2 bg-primary text-white rounded-lg hover:bg-primary/80 transition-colors font-medium"
+            className="inline-flex items-center px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors"
           >
             Jogar Novamente
           </button>
+        </div>
+
+        {/* Instruções */}
+        <div className="bg-gray-50 rounded-xl p-4 sm:p-6 mt-6">
+          <h3 className="text-base sm:text-lg font-semibold text-gray-800 mb-3">Como Jogar:</h3>
+          <div className="flex flex-col gap-2 mb-2">
+            <div className="flex items-center gap-2">
+              <span className="w-5 h-5 rounded bg-blue-200 inline-block border border-blue-400 flex items-center justify-center text-lg">✊</span>
+              <span className="text-sm text-gray-800">Pedra ganha da Tesoura</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="w-5 h-5 rounded bg-yellow-200 inline-block border border-yellow-400 flex items-center justify-center text-lg">✋</span>
+              <span className="text-sm text-gray-800">Papel ganha da Pedra</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="w-5 h-5 rounded bg-pink-200 inline-block border border-pink-400 flex items-center justify-center text-lg">✌️</span>
+              <span className="text-sm text-gray-800">Tesoura ganha do Papel</span>
+            </div>
+          </div>
+          <ul className="space-y-1 text-sm text-gray-700 mt-2">
+            <li>• Escolha entre Pedra, Papel ou Tesoura</li>
+            <li>• O computador também fará uma escolha</li>
+            <li>• Veja quem vence cada rodada</li>
+            <li>• O placar mostra suas vitórias, empates e derrotas</li>
+          </ul>
         </div>
       </div>
     </div>

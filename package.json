@@ -24,7 +24,7 @@
     "postcss": "latest",
     "tailwindcss": "latest",
     "typescript": "latest",
-    "vite": "latest"
+    "vite": "^6.3.5"
   },
   "version": "1.0.1"
 }
