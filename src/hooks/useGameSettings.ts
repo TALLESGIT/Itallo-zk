@@ -132,18 +132,17 @@ export const useGameSettings = () => {
   useEffect(() => {
     fetchGameSettings();
 
-    // Escutar mudanças em tempo real na tabela game_settings (Supabase)
+    // Gerar um nome de canal único por instância para evitar erro de múltiplas inscrições
+    const uniqueChannelName = `public:game_settings_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`;
     const channel = supabase
-      .channel('public:game_settings')
+      .channel(uniqueChannelName)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'game_settings' },
         (payload: any) => {
-          // Atualiza estado local de forma otimista sem depender somente de nova query
           setGameSettings(prev => {
             const idx = prev.findIndex(s => s.game_name === payload.new?.game_name);
             if (payload.eventType === 'DELETE') {
-              // Remove configuração deletada
               if (idx !== -1) {
                 const copy = [...prev];
                 copy.splice(idx, 1);
@@ -151,8 +150,6 @@ export const useGameSettings = () => {
               }
               return prev;
             }
-
-            // Para INSERT ou UPDATE
             const newSetting = {
               id: payload.new.id,
               game_name: payload.new.game_name,
@@ -160,7 +157,6 @@ export const useGameSettings = () => {
               created_at: payload.new.created_at,
               updated_at: payload.new.updated_at,
             } as GameSetting;
-
             if (idx !== -1) {
               const copy = [...prev];
               copy[idx] = newSetting;

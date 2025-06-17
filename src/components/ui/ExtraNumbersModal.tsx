@@ -25,8 +25,9 @@ const ExtraNumbersModal: React.FC<ExtraNumbersModalProps> = ({ onClose, userWhat
 
   // Atualizar em tempo real se pendência mudar
   useEffect(() => {
+    const uniqueChannelName = `schema-db-changes_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`;
     const channel = supabase
-      .channel('schema-db-changes')
+      .channel(uniqueChannelName)
       .on(
         'postgres_changes',
         {

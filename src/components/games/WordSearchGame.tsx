@@ -195,9 +195,10 @@ const WordSearchGame: React.FC = () => {
   useEffect(() => {
     fetchWords();
 
-    // Atualizar automaticamente quando a lista de palavras mudar no banco
+    // Gerar um nome de canal único por instância para evitar erro de múltiplas inscrições
+    const uniqueChannelName = `word_search_words_changes_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`;
     const channel = supabase
-      .channel('word_search_words_changes')
+      .channel(uniqueChannelName)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'word_search_words' },

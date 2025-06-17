@@ -32,8 +32,10 @@ const NumberGuessGame: React.FC<NumberGuessGameProps> = ({ onBack }) => {
       fetchSecretAndStart();
     }
 
+    // Gerar um nome de canal único por instância para evitar erro de múltiplas inscrições
+    const uniqueChannelName = `public:number_guess_config_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`;
     const channel = supabase
-      .channel('public:number_guess_config')
+      .channel(uniqueChannelName)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'number_guess_config' }, payload => {
         if (payload.new?.secret) {
           setSecretNumber(payload.new.secret);

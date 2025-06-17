@@ -35,8 +35,9 @@ const ViewNumbersModal: React.FC<ViewNumbersModalProps> = ({ onClose, whatsapp }
 
   // Atualizar modal em tempo real se pendências mudarem
   useEffect(() => {
+    const uniqueChannelName = `schema-db-changes_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`;
     const channel = supabase
-      .channel('schema-db-changes')
+      .channel(uniqueChannelName)
       .on(
         'postgres_changes',
         {
