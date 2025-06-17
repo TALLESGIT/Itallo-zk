@@ -19,12 +19,12 @@
     "@types/react": "latest",
     "@types/react-dom": "latest",
     "@types/uuid": "latest",
-    "@vitejs/plugin-react": "latest",
+    "@vitejs/plugin-react": "^4.2.0",
     "autoprefixer": "latest",
     "postcss": "latest",
     "tailwindcss": "latest",
     "typescript": "latest",
-    "vite": "^6.3.5"
+    "vite": "^5.2.10"
   },
   "version": "1.0.1"
 }
