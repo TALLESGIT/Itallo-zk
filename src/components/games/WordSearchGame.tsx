@@ -341,7 +341,7 @@ const WordSearchGame: React.FC = () => {
   };
 
   const handleCellMouseEnter = (row: number, col: number) => {
-    if (!isSelecting || selectedCells.length === 0 || isMobile) return;
+    if (!isSelecting || !gameStarted || gameCompleted || isMobile) return;
 
     const start = selectedCells[0];
     const positions = getLineBetweenCells(start, { row, col });
@@ -349,7 +349,7 @@ const WordSearchGame: React.FC = () => {
   };
 
   const handleCellMouseUp = () => {
-    if (!isSelecting || isMobile) return;
+    if (!gameStarted || gameCompleted || isMobile) return;
     setIsSelecting(false);
 
     if (selectedCells.length > 1) {
@@ -571,8 +571,21 @@ const WordSearchGame: React.FC = () => {
                 </div>
               )}
 
-              <div className="flex justify-center">
-                <div className="overflow-x-auto">
+              <div className="flex justify-center" style={{ position: 'relative' }}>
+                <div className="overflow-x-auto" style={{ position: 'relative' }}>
+                  {/* Overlay para bloquear interação quando showNameInput estiver aberto */}
+                  {showNameInput && (
+                    <div style={{
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      width: '100%',
+                      height: '100%',
+                      background: 'rgba(255,255,255,0.6)',
+                      zIndex: 10,
+                      cursor: 'not-allowed',
+                    }} />
+                  )}
                   <div
                     className="grid gap-[4px] mx-auto select-none"
                     style={{
