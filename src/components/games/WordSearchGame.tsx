@@ -711,31 +711,31 @@ const WordSearchGame: React.FC = () => {
                 </button>
               </div>
             ) : (
-              <div className="space-y-4">
-                <input
-                  type="text"
-                  placeholder="Digite seu nome"
-                  value={playerName}
-                  onChange={(e) => setPlayerName(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                  maxLength={50}
-                />
-                <div className="flex gap-3">
-                  <button
-                    onClick={handleSaveScore}
-                    disabled={!playerName.trim()}
+            <div className="space-y-4">
+              <input
+                type="text"
+                placeholder="Digite seu nome"
+                value={playerName}
+                onChange={(e) => setPlayerName(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                maxLength={50}
+              />
+              <div className="flex gap-3">
+                <button
+                  onClick={handleSaveScore}
+                  disabled={!playerName.trim()}
                     className="inline-flex items-center px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors flex-1 font-semibold justify-center"
-                  >
-                    Salvar Pontuação
-                  </button>
-                  <button
-                    onClick={() => setShowNameInput(false)}
-                    className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-                  >
-                    Pular
-                  </button>
-                </div>
+                >
+                  Salvar Pontuação
+                </button>
+                <button
+                  onClick={() => setShowNameInput(false)}
+                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  Pular
+                </button>
               </div>
+            </div>
             )}
           </motion.div>
         </div>
