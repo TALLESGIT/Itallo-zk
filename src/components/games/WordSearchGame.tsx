@@ -51,6 +51,22 @@ const WordSearchGame: React.FC = () => {
 
   const gameEnabled = isGameEnabled('word_search');
 
+  // Função utilitária para gerar hash simples das palavras do grid
+  function getWordsHash(words: string[]) {
+    return btoa(words.join('|')).slice(0, 12);
+  }
+  const wordsHash = getWordsHash(wordsToFind);
+
+  useEffect(() => {
+    if (wordsHash && wordsToFind.length) {
+      const wonKey = `word_search_won_${wordsHash}`;
+      if (localStorage.getItem(wonKey) === 'true') {
+        setGameCompleted(true);
+        setShowNameInput(false);
+      }
+    }
+  }, [wordsHash, wordsToFind.length]);
+
   // Gerar grid aleatório com palavras escondidas
   const generateGrid = useCallback(() => {
     const N = gridSize;
@@ -319,15 +335,17 @@ const WordSearchGame: React.FC = () => {
         // Primeiro clique - selecionar célula inicial
         setFirstClick({ row, col });
         setSelectedCells([{ row, col }]);
+      } else if (firstClick.row === row && firstClick.col === col) {
+        // Clicou novamente na célula inicial: cancelar seleção
+        setFirstClick(null);
+        setSelectedCells([]);
       } else {
         // Segundo clique - criar linha até a célula final
         const positions = getLineBetweenCells(firstClick, { row, col });
         setSelectedCells(positions);
-        
         if (positions.length > 1) {
           checkForWord(positions);
         }
-        
         setFirstClick(null);
         setTimeout(() => setSelectedCells([]), 500);
       }
@@ -454,6 +472,17 @@ const WordSearchGame: React.FC = () => {
     );
   }
 
+  if (gameCompleted && localStorage.getItem(`word_search_won_${wordsHash}`) === 'true') {
+    return (
+      <div className="container mx-auto px-4 py-8 flex flex-col items-center justify-center min-h-[60vh]">
+        <div className="bg-green-50 border border-green-200 rounded-xl p-6 text-center max-w-md">
+          <h2 className="text-xl font-bold text-green-800 mb-2">Parabéns!</h2>
+          <p className="text-gray-700 mb-4">Você já completou o desafio atual.<br/> Aguarde o administrador trocar as palavras para jogar novamente.</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-6xl mx-auto p-4">
       {/* Header */}
@@ -556,40 +585,23 @@ const WordSearchGame: React.FC = () => {
             </div>
           ) : (
             <div className="bg-white rounded-xl shadow-lg">
-              {/* Mobile controls */}
-              {isMobile && firstClick && (
-                <div className="mb-4 text-center">
-                  <button
-                    onClick={() => {
-                      setFirstClick(null);
-                      setSelectedCells([]);
-                    }}
-                    className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-medium"
-                  >
-                    Cancelar Seleção
-                  </button>
-                </div>
-              )}
-
               <div className="flex justify-center" style={{ position: 'relative' }}>
-                <div className="overflow-x-auto" style={{ position: 'relative' }}>
-                  {/* Overlay para bloquear interação quando showNameInput estiver aberto */}
-                  {showNameInput && (
-                    <div style={{
-                      position: 'absolute',
-                      top: 0,
-                      left: 0,
-                      width: '100%',
-                      height: '100%',
-                      background: 'rgba(255,255,255,0.6)',
-                      zIndex: 10,
-                      cursor: 'not-allowed',
-                    }} />
+                <div
+                  className="overflow-x-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100 px-2 sm:px-0"
+                  style={{ position: 'relative', minWidth: '100vw', WebkitOverflowScrolling: 'touch' }}
+                >
+                  {/* Dica visual de arraste no mobile */}
+                  {isMobile && (
+                    <div className="absolute left-2 top-2 z-20 flex items-center pointer-events-none select-none animate-pulse">
+                      <svg width="24" height="24" fill="none" viewBox="0 0 24 24"><path d="M8 12h8M8 12l3-3m-3 3l3 3" stroke="#888" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                      <span className="ml-1 text-xs text-gray-500">Arraste para o lado</span>
+                    </div>
                   )}
                   <div
                     className="grid gap-[4px] mx-auto select-none"
                     style={{
-                      width: cellSize * gridSize,
+                      width: Math.max(cellSize * gridSize, 320),
+                      minWidth: 320,
                       gridTemplateColumns: `repeat(${gridSize}, ${cellSize}px)`
                     }}
                   >

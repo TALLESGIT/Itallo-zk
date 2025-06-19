@@ -20,7 +20,7 @@ const banners: Banner[] = [
   },
   {
     image: '/banner10mil.jpeg', // Altere o nome se necessário
-    link: 'https://seusite.com/10mil',
+    link: 'https://zksorteios.com.br/campanha/r-usd-10-000-00-reias-no-pix-2',
     alt: 'Banner Ação 10 mil reais',
   },
 ];

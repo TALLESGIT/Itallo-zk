@@ -1,5 +1,6 @@
 import { supabase, testSupabaseConnection } from '../lib/supabase';
 import { Participant } from '../types';
+import type { QuizQuestion, HangmanWord } from '../types';
 
 // Reset system
 export const resetSystem = async (): Promise<boolean> => {
@@ -369,3 +370,83 @@ export async function hasCompleted(userId: string, word: string) {
     .maybeSingle();
   return !!data;
 }
+
+// QUIZ QUESTIONS SERVICE
+export const getQuizQuestions = async (): Promise<QuizQuestion[]> => {
+  const { data, error } = await supabase
+    .from('quiz_questions')
+    .select('*')
+    .order('created_at', { ascending: true });
+  if (error) throw error;
+  return data || [];
+};
+
+export const addQuizQuestion = async (question: Omit<QuizQuestion, 'id' | 'created_at' | 'updated_at'>): Promise<void> => {
+  const { error } = await supabase
+    .from('quiz_questions')
+    .insert([{ ...question }]);
+  if (error) throw error;
+};
+
+export const updateQuizQuestion = async (id: string, question: Partial<QuizQuestion>): Promise<void> => {
+  const { error } = await supabase
+    .from('quiz_questions')
+    .update({ ...question, updated_at: new Date().toISOString() })
+    .eq('id', id);
+  if (error) throw error;
+};
+
+export const deleteQuizQuestion = async (id: string): Promise<void> => {
+  const { error } = await supabase
+    .from('quiz_questions')
+    .delete()
+    .eq('id', id);
+  if (error) throw error;
+};
+
+// HANGMAN WORDS SERVICE
+export const getHangmanWords = async (): Promise<HangmanWord[]> => {
+  const { data, error } = await supabase
+    .from('game_words')
+    .select('*')
+    .order('created_at', { ascending: true });
+  if (error) throw error;
+  return data || [];
+};
+
+export const addHangmanWord = async (word: Omit<HangmanWord, 'id' | 'created_at' | 'updated_at'>): Promise<void> => {
+  const { error } = await supabase
+    .from('game_words')
+    .insert([{ ...word }]);
+  if (error) throw error;
+};
+
+export const updateHangmanWord = async (id: number, word: Partial<HangmanWord>): Promise<void> => {
+  const { error } = await supabase
+    .from('game_words')
+    .update({ ...word, updated_at: new Date().toISOString() })
+    .eq('id', id);
+  if (error) throw error;
+};
+
+export const deleteHangmanWord = async (id: number): Promise<void> => {
+  const { error } = await supabase
+    .from('game_words')
+    .delete()
+    .eq('id', id);
+  if (error) throw error;
+};
+
+export const activateHangmanWord = async (id: number): Promise<void> => {
+  // Desativa todas, ativa só a escolhida
+  const { error: deactivateError } = await supabase
+    .from('game_words')
+    .update({ is_active: false })
+    .eq('is_active', true);
+  if (deactivateError) throw deactivateError;
+  const { error } = await supabase
+    .from('game_words')
+    .update({ is_active: true })
+    .eq('id', id);
+  if (error) throw error;
+};

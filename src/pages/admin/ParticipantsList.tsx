@@ -11,6 +11,7 @@ const ParticipantsList: React.FC = () => {
   const [search, setSearch] = useState('');
   const [filteredParticipants, setFilteredParticipants] = useState<Participant[]>([]);
   const [deleteModal, setDeleteModal] = useState<{ open: boolean; participant?: Participant } | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   useEffect(() => {
     refreshData();
@@ -69,23 +70,25 @@ const ParticipantsList: React.FC = () => {
   const participantsArray = Object.values(groupedParticipants)
     .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
 
-  // Adicionado para debug: mostrar todos os participantes carregados
-  console.log('Participantes carregados:', participantsArray);
-
   const openDeleteModal = (participant: Participant) => {
     setDeleteModal({ open: true, participant });
   };
 
   const closeDeleteModal = () => setDeleteModal(null);
 
-  const handleDelete = async (id: number) => {
+  const handleDelete = async () => {
+    if (!deleteModal?.participant?.id) {
+      setDeleteError('ID do participante inválido.');
+      return;
+    }
     const { deleteParticipant } = await import('../../services/dataService');
-    const result = await deleteParticipant(id);
+    const result = await deleteParticipant(deleteModal.participant.id);
     if (result.success) {
       await refreshData();
       closeDeleteModal();
+      setDeleteError(null);
     } else {
-      alert('Erro ao excluir participante: ' + (result.reason || 'Erro desconhecido'));
+      setDeleteError(result.reason || 'Erro desconhecido');
     }
   };
 
@@ -191,68 +194,63 @@ const ParticipantsList: React.FC = () => {
       </div>
 
       <AnimatePresence>
-        {deleteModal?.open && deleteModal.participant && (
+        {deleteModal?.open && (
           <motion.div
-            className="modal-overlay backdrop-blur-sm z-50 fixed inset-0 flex items-center justify-center"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
           >
-            <motion.div
-              className="modal-content bg-white rounded-2xl overflow-hidden max-w-md w-full shadow-2xl"
-              initial={{ scale: 0.9, opacity: 0, y: 20 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              transition={{ type: 'spring', damping: 25 }}
-            >
-              <div className="relative">
-                <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-primary via-secondary to-accent"></div>
-                <div className="p-6">
-                  <div className="flex justify-between items-center mb-6">
-                    <h2 className="text-2xl font-bold text-gray-800">Excluir participante</h2>
-                    <button
-                      onClick={closeDeleteModal}
-                      className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-                      aria-label="Fechar"
-                    >
-                      <span className="sr-only">Fechar</span>
-                      <Trash2 size={20} className="text-gray-500" />
-                    </button>
-                  </div>
-                  <div className="mb-4 text-gray-700">
-                    Tem certeza que deseja excluir o participante abaixo?
-                  </div>
-                  <div className="bg-gray-50 p-4 rounded-xl mb-6 space-y-2">
-                    <div className="flex justify-between items-center">
-                      <span className="text-gray-600">Nome:</span>
-                      <span className="font-medium">{deleteModal.participant.name}</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-gray-600">WhatsApp:</span>
-                      <span className="font-medium">{deleteModal.participant.whatsapp}</span>
-                    </div>
-                  </div>
-                  <div className="flex justify-end gap-3">
-                    <button
-                      type="button"
-                      className="btn btn-outline rounded-xl"
-                      onClick={closeDeleteModal}
-                    >
-                      Cancelar
-                    </button>
-                    <button
-                      type="button"
-                      className="border border-red-300 bg-red-50 hover:bg-red-100 text-red-600 hover:text-red-800 rounded-full p-2 transition-colors duration-150 shadow-sm focus:outline-none focus:ring-2 focus:ring-red-300 flex items-center gap-2"
-                      style={{ minWidth: 36, minHeight: 36, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
-                      onClick={() => handleDelete(Number(deleteModal?.participant?.id) ?? 0)}
-                    >
-                      Excluir
-                      <Trash2 size={18} />
-                    </button>
-                  </div>
+            <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md relative animate-fadeIn">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-2xl font-bold text-gray-800">Excluir participante</h2>
+                <button
+                  onClick={closeDeleteModal}
+                  className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                  aria-label="Fechar"
+                >
+                  <span className="sr-only">Fechar</span>
+                  <Trash2 size={20} className="text-gray-500" />
+                </button>
+              </div>
+              <div className="mb-4 text-gray-700">
+                Tem certeza que deseja excluir o participante abaixo?
+              </div>
+              <div className="bg-gray-50 p-4 rounded-xl mb-6 space-y-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600">Nome:</span>
+                  <span className="font-medium">{deleteModal.participant.name}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600">WhatsApp:</span>
+                  <span className="font-medium">{deleteModal.participant.whatsapp}</span>
                 </div>
               </div>
-            </motion.div>
+              {deleteError && (
+                <div className="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 flex items-center gap-2">
+                  <Trash2 size={18} className="text-red-400" />
+                  <span>{deleteError}</span>
+                </div>
+              )}
+              <div className="flex justify-end gap-3">
+                <button
+                  type="button"
+                  className="btn btn-outline rounded-xl"
+                  onClick={closeDeleteModal}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  className="border border-red-300 bg-red-50 hover:bg-red-100 text-red-600 hover:text-red-800 rounded-full p-2 transition-colors duration-150 shadow-sm focus:outline-none focus:ring-2 focus:ring-red-300 flex items-center gap-2"
+                  style={{ minWidth: 36, minHeight: 36, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
+                  onClick={handleDelete}
+                >
+                  Excluir
+                  <Trash2 size={18} />
+                </button>
+              </div>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>

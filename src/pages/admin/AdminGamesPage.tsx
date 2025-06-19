@@ -1,12 +1,15 @@
 import { useState, useEffect } from 'react';
 import AdminLayout from '../../components/admin/AdminLayout';
-import { Brain, Plus, Edit, Trash2, Gamepad2, Hash, HelpCircle, Search, Lock, Unlock, AlertTriangle, X, BookOpen } from 'lucide-react';
+import { Brain, Plus, Edit, Trash2, Gamepad2, Hash, HelpCircle, Search, Lock, Unlock, AlertTriangle, X, BookOpen, Star, Smile, Zap } from 'lucide-react';
 import { AlertCircle } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { supabase } from '../../lib/supabase';
 import { motion } from 'framer-motion';
 import { useGameSettings } from '../../hooks/useGameSettings';
-import { Zap } from 'lucide-react';
+import { getQuizQuestions, addQuizQuestion, updateQuizQuestion, deleteQuizQuestion } from '../../services/dataService';
+import type { QuizQuestion } from '../../types';
+import { getHangmanWords, addHangmanWord, updateHangmanWord, deleteHangmanWord, activateHangmanWord } from '../../services/dataService';
+import type { HangmanWord } from '../../types';
 
 const AdminGamesPage: React.FC = () => {
   const { gameSettings, updateGameSetting, loading: gameSettingsLoading } = useGameSettings();
@@ -23,16 +26,64 @@ const AdminGamesPage: React.FC = () => {
   const [isDeleting, setIsDeleting] = useState(false);
   const [showWinnersModal, setShowWinnersModal] = useState(false);
   const [isWiping, setIsWiping] = useState(false);
+  const gameTabs = [
+    { key: 'memory_game', label: 'Jogo da Memória', icon: <Star className="w-5 h-5" /> },
+    { key: 'quiz_game', label: 'Quiz de Conhecimentos', icon: <HelpCircle className="w-5 h-5" /> },
+    { key: 'hangman_game', label: 'Jogo da Forca', icon: <Smile className="w-5 h-5" /> },
+    { key: 'word_guess', label: 'Descubra a Palavra', icon: <Brain className="w-5 h-5" /> },
+    { key: 'number_guess', label: 'Adivinhe o Número', icon: <Zap className="w-5 h-5" /> },
+    { key: 'word_search', label: 'Caça-palavras', icon: <Search className="w-5 h-5" /> },
+    { key: 'acesso', label: 'Controle de Acesso', icon: <Lock className="w-5 h-5" /> },
+  ];
+  const [activeTab, setActiveTab] = useState(gameTabs[0].key);
 
   // === Number Guess Config ===
   const [currentSecret, setCurrentSecret] = useState<number | null>(null);
   const [secretInput, setSecretInput] = useState<string>('');
   const [savingSecret, setSavingSecret] = useState(false);
 
+  const [accessLoading, setAccessLoading] = useState<string | null>(null);
+
+  const [quizQuestions, setQuizQuestions] = useState<QuizQuestion[]>([]);
+  const [showQuizModal, setShowQuizModal] = useState(false);
+  const [editingQuiz, setEditingQuiz] = useState<QuizQuestion | null>(null);
+  const [quizForm, setQuizForm] = useState({
+    question_text: '',
+    options: ['', '', '', ''],
+    correct_answer: '',
+    category: '',
+    difficulty: '',
+    is_active: true,
+  });
+  const [quizLoading, setQuizLoading] = useState(false);
+  const [quizDeleteId, setQuizDeleteId] = useState<string | null>(null);
+  const [quizDeleteLoading, setQuizDeleteLoading] = useState(false);
+
+  const [hangmanWords, setHangmanWords] = useState<HangmanWord[]>([]);
+  const [showHangmanModal, setShowHangmanModal] = useState(false);
+  const [editingHangman, setEditingHangman] = useState<HangmanWord | null>(null);
+  const [hangmanForm, setHangmanForm] = useState({ word: '', hint: '', category: 'geral' });
+  const [hangmanLoading, setHangmanLoading] = useState(false);
+  const [hangmanDeleteId, setHangmanDeleteId] = useState<number | null>(null);
+  const [hangmanDeleteLoading, setHangmanDeleteLoading] = useState(false);
+
+  const [wordGuessWords, setWordGuessWords] = useState<HangmanWord[]>([]);
+  const [showWordGuessModal, setShowWordGuessModal] = useState(false);
+  const [editingWordGuess, setEditingWordGuess] = useState<HangmanWord | null>(null);
+  const [wordGuessForm, setWordGuessForm] = useState({ word: '', hint: '', category: 'geral' });
+  const [wordGuessLoading, setWordGuessLoading] = useState(false);
+  const [wordGuessDeleteId, setWordGuessDeleteId] = useState<number | null>(null);
+  const [wordGuessDeleteLoading, setWordGuessDeleteLoading] = useState(false);
+
+  const [showSecretModal, setShowSecretModal] = useState(false);
+
   useEffect(() => {
     fetchGameWords();
     fetchWordSearchWords();
     fetchSecretNumber();
+    fetchQuizQuestions();
+    fetchHangmanWords();
+    fetchWordGuessWords();
   }, []);
 
   const fetchGameWords = async () => {
@@ -75,6 +126,42 @@ const AdminGamesPage: React.FC = () => {
     if (!error && data) {
       setCurrentSecret(data.secret);
       setSecretInput(String(data.secret));
+    }
+  };
+
+  const fetchQuizQuestions = async () => {
+    setQuizLoading(true);
+    try {
+      const data = await getQuizQuestions();
+      setQuizQuestions(data);
+    } catch (err) {
+      toast.error('Erro ao carregar perguntas do Quiz.');
+    } finally {
+      setQuizLoading(false);
+    }
+  };
+
+  const fetchHangmanWords = async () => {
+    setHangmanLoading(true);
+    try {
+      const data = await getHangmanWords();
+      setHangmanWords(data);
+    } catch (err) {
+      toast.error('Erro ao carregar palavras da Forca.');
+    } finally {
+      setHangmanLoading(false);
+    }
+  };
+
+  const fetchWordGuessWords = async () => {
+    setWordGuessLoading(true);
+    try {
+      const data = await getHangmanWords();
+      setWordGuessWords((data || []).filter(w => !!w.hint));
+    } catch (err) {
+      toast.error('Erro ao carregar palavras do Descubra a Palavra.');
+    } finally {
+      setWordGuessLoading(false);
     }
   };
 
@@ -246,44 +333,49 @@ const AdminGamesPage: React.FC = () => {
   };
 
   // Funções para Caça Palavras
-  const handleSaveSearchWord = async () => {
+  const handleSaveNewSearchWord = async () => {
     if (!newSearchWord.word.trim()) {
       toast.error('A palavra é obrigatória!');
       return;
     }
-
     try {
-      if (editingSearchWord) {
-        const { error } = await supabase
-          .from('word_search_words')
-          .update({
-            word: newSearchWord.word.trim().toUpperCase(),
-            category: newSearchWord.category.trim() || 'geral',
-          })
-          .eq('id', editingSearchWord.id);
-
-        if (error) throw error;
-        toast.success('Palavra do caça palavras atualizada com sucesso!');
-      } else {
-        const { error } = await supabase
-          .from('word_search_words')
-          .insert({
-            word: newSearchWord.word.trim().toUpperCase(),
-            category: newSearchWord.category.trim() || 'geral',
-            is_active: true,
-          });
-
-        if (error) throw error;
-        toast.success('Palavra do caça palavras adicionada com sucesso!');
-      }
-
+      const { error } = await supabase
+        .from('word_search_words')
+        .insert({
+          word: newSearchWord.word.trim(),
+          category: newSearchWord.category.trim() || null,
+          is_active: true,
+        });
+      if (error) throw error;
+      toast.success('Palavra adicionada com sucesso!');
       setNewSearchWord({ word: '', category: 'geral' });
+      setShowSearchWordModal(false);
+      fetchWordSearchWords();
+    } catch (error) {
+      toast.error('Erro ao adicionar palavra.');
+    }
+  };
+
+  const handleSaveSearchWord = async () => {
+    if (!editingSearchWord.word.trim()) {
+      toast.error('A palavra é obrigatória!');
+      return;
+    }
+    try {
+      const { error } = await supabase
+        .from('word_search_words')
+        .update({
+          word: editingSearchWord.word.trim(),
+          category: editingSearchWord.category.trim() || null,
+        })
+        .eq('id', editingSearchWord.id);
+      if (error) throw error;
+      toast.success('Palavra atualizada com sucesso!');
       setEditingSearchWord(null);
       setShowSearchWordModal(false);
       fetchWordSearchWords();
     } catch (error) {
-      console.error('Erro ao salvar palavra do caça palavras:', error);
-      toast.error('Erro ao salvar palavra do caça palavras.');
+      toast.error('Erro ao atualizar palavra.');
     }
   };
 
@@ -380,545 +472,883 @@ const AdminGamesPage: React.FC = () => {
     }
   };
 
+  const openQuizModal = (question?: QuizQuestion) => {
+    if (question) {
+      setEditingQuiz(question);
+      setQuizForm({
+        question_text: question.question_text,
+        options: question.options.slice(0, 4),
+        correct_answer: question.correct_answer,
+        category: question.category || '',
+        difficulty: question.difficulty || '',
+        is_active: question.is_active,
+      });
+    } else {
+      setEditingQuiz(null);
+      setQuizForm({
+        question_text: '',
+        options: ['', '', '', ''],
+        correct_answer: '',
+        category: '',
+        difficulty: '',
+        is_active: true,
+      });
+    }
+    setShowQuizModal(true);
+  };
+
+  const closeQuizModal = () => {
+    setShowQuizModal(false);
+    setEditingQuiz(null);
+  };
+
+  const handleQuizFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>, idx?: number) => {
+    if (typeof idx === 'number') {
+      const newOptions = [...quizForm.options];
+      newOptions[idx] = e.target.value;
+      setQuizForm({ ...quizForm, options: newOptions });
+    } else {
+      setQuizForm({ ...quizForm, [e.target.name]: e.target.value });
+    }
+  };
+
+  const handleSaveQuizQuestion = async () => {
+    if (!quizForm.question_text.trim() || quizForm.options.some(opt => !opt.trim()) || quizForm.correct_answer === '') {
+      toast.error('Preencha todos os campos obrigatórios!');
+      return;
+    }
+    setQuizLoading(true);
+    try {
+      if (editingQuiz) {
+        await updateQuizQuestion(editingQuiz.id, {
+          ...quizForm,
+          options: quizForm.options,
+        });
+        toast.success('Pergunta atualizada com sucesso!');
+      } else {
+        await addQuizQuestion({
+          ...quizForm,
+          options: quizForm.options,
+        });
+        toast.success('Pergunta adicionada com sucesso!');
+      }
+      closeQuizModal();
+      fetchQuizQuestions();
+    } catch (err) {
+      toast.error('Erro ao salvar pergunta.');
+    } finally {
+      setQuizLoading(false);
+    }
+  };
+
+  const handleDeleteQuizQuestion = (id: string) => {
+    setQuizDeleteId(id);
+  };
+
+  const confirmDeleteQuizQuestion = async () => {
+    if (!quizDeleteId) return;
+    setQuizDeleteLoading(true);
+    try {
+      await deleteQuizQuestion(quizDeleteId);
+      toast.success('Pergunta excluída!');
+      setQuizDeleteId(null);
+      fetchQuizQuestions();
+    } catch (err) {
+      toast.error('Erro ao excluir pergunta.');
+    } finally {
+      setQuizDeleteLoading(false);
+    }
+  };
+
+  const closeQuizDeleteModal = () => {
+    setQuizDeleteId(null);
+    setQuizDeleteLoading(false);
+  };
+
+  const openHangmanModal = (word?: HangmanWord) => {
+    if (word) {
+      setEditingHangman(word);
+      setHangmanForm({ word: word.word, hint: word.hint || '', category: word.category || 'geral' });
+    } else {
+      setEditingHangman(null);
+      setHangmanForm({ word: '', hint: '', category: 'geral' });
+    }
+    setShowHangmanModal(true);
+  };
+
+  const closeHangmanModal = () => {
+    setShowHangmanModal(false);
+    setEditingHangman(null);
+  };
+
+  const handleHangmanFormChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setHangmanForm({ ...hangmanForm, [e.target.name]: e.target.value });
+  };
+
+  const handleSaveHangmanWord = async () => {
+    if (!hangmanForm.word.trim()) {
+      toast.error('A palavra é obrigatória!');
+      return;
+    }
+    setHangmanLoading(true);
+    try {
+      if (editingHangman) {
+        await updateHangmanWord(editingHangman.id, {
+          word: hangmanForm.word.trim().toUpperCase(),
+          hint: hangmanForm.hint.trim() || null,
+          category: hangmanForm.category,
+        });
+        toast.success('Palavra atualizada com sucesso!');
+      } else {
+        await addHangmanWord({
+          word: hangmanForm.word.trim().toUpperCase(),
+          hint: hangmanForm.hint.trim() || null,
+          category: hangmanForm.category,
+          is_active: false,
+        });
+        toast.success('Palavra adicionada com sucesso!');
+      }
+      closeHangmanModal();
+      fetchHangmanWords();
+    } catch (err) {
+      toast.error('Erro ao salvar palavra.');
+    } finally {
+      setHangmanLoading(false);
+    }
+  };
+
+  const handleDeleteHangmanWord = (id: number) => {
+    setHangmanDeleteId(id);
+  };
+
+  const confirmDeleteHangmanWord = async () => {
+    if (!hangmanDeleteId) return;
+    setHangmanDeleteLoading(true);
+    try {
+      await deleteHangmanWord(hangmanDeleteId);
+      toast.success('Palavra excluída!');
+      setHangmanDeleteId(null);
+      fetchHangmanWords();
+    } catch (err) {
+      toast.error('Erro ao excluir palavra.');
+    } finally {
+      setHangmanDeleteLoading(false);
+    }
+  };
+
+  const closeHangmanDeleteModal = () => {
+    setHangmanDeleteId(null);
+    setHangmanDeleteLoading(false);
+  };
+
+  const handleActivateHangmanWord = async (id: number) => {
+    setHangmanLoading(true);
+    try {
+      await activateHangmanWord(id);
+      toast.success('Palavra ativada!');
+      fetchHangmanWords();
+    } catch (err) {
+      toast.error('Erro ao ativar palavra.');
+    } finally {
+      setHangmanLoading(false);
+    }
+  };
+
+  const openWordGuessModal = (word?: HangmanWord) => {
+    if (word) {
+      setEditingWordGuess(word);
+      setWordGuessForm({ word: word.word, hint: word.hint || '', category: word.category || 'geral' });
+    } else {
+      setEditingWordGuess(null);
+      setWordGuessForm({ word: '', hint: '', category: 'geral' });
+    }
+    setShowWordGuessModal(true);
+  };
+
+  const closeWordGuessModal = () => {
+    setShowWordGuessModal(false);
+    setEditingWordGuess(null);
+  };
+
+  const handleWordGuessFormChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setWordGuessForm({ ...wordGuessForm, [e.target.name]: e.target.value });
+  };
+
+  const handleSaveWordGuess = async () => {
+    if (!wordGuessForm.word.trim() || !wordGuessForm.hint.trim()) {
+      toast.error('Preencha a palavra e a dica!');
+      return;
+    }
+    setWordGuessLoading(true);
+    try {
+      if (editingWordGuess) {
+        await updateHangmanWord(editingWordGuess.id, {
+          word: wordGuessForm.word.trim().toUpperCase(),
+          hint: wordGuessForm.hint.trim(),
+          category: wordGuessForm.category,
+        });
+        toast.success('Palavra atualizada com sucesso!');
+      } else {
+        await addHangmanWord({
+          word: wordGuessForm.word.trim().toUpperCase(),
+          hint: wordGuessForm.hint.trim(),
+          category: wordGuessForm.category,
+          is_active: false,
+        });
+        toast.success('Palavra adicionada com sucesso!');
+      }
+      closeWordGuessModal();
+      fetchWordGuessWords();
+    } catch (err) {
+      toast.error('Erro ao salvar palavra.');
+    } finally {
+      setWordGuessLoading(false);
+    }
+  };
+
+  const handleDeleteWordGuess = (id: number) => {
+    setWordGuessDeleteId(id);
+  };
+
+  const confirmDeleteWordGuess = async () => {
+    if (!wordGuessDeleteId) return;
+    setWordGuessDeleteLoading(true);
+    try {
+      await deleteHangmanWord(wordGuessDeleteId);
+      toast.success('Palavra excluída!');
+      setWordGuessDeleteId(null);
+      fetchWordGuessWords();
+    } catch (err) {
+      toast.error('Erro ao excluir palavra.');
+    } finally {
+      setWordGuessDeleteLoading(false);
+    }
+  };
+
+  const closeWordGuessDeleteModal = () => {
+    setWordGuessDeleteId(null);
+    setWordGuessDeleteLoading(false);
+  };
+
+  const handleActivateWordGuess = async (id: number) => {
+    setWordGuessLoading(true);
+    try {
+      await activateHangmanWord(id);
+      toast.success('Palavra ativada!');
+      fetchWordGuessWords();
+    } catch (err) {
+      toast.error('Erro ao ativar palavra.');
+    } finally {
+      setWordGuessLoading(false);
+    }
+  };
+
+  const handleDeleteSearchWord = async () => {
+    if (!wordToDelete) return;
+    try {
+      const { error } = await supabase
+        .from('word_search_words')
+        .delete()
+        .eq('id', wordToDelete.id);
+      if (error) throw error;
+      toast.success('Palavra excluída com sucesso!');
+      setShowDeleteModal(false);
+      setWordToDelete(null);
+      fetchWordSearchWords();
+    } catch (error) {
+      toast.error('Erro ao excluir palavra.');
+    }
+  };
+
   return (
     <AdminLayout title="Brincadeiras">
-      <div className="flex justify-center">
-        <div className="w-full max-w-4xl">
-          <div className="space-y-8">
-            <div>
-              <h2 className="text-xl font-semibold mb-4">Configurações de Jogo</h2>
-              <div className="bg-white rounded-xl shadow-lg p-6">
-                <div className="flex items-center mb-6">
-                  <Brain className="text-primary mr-3" size={24} />
-                  <h2 className="text-xl font-bold text-gray-800">Palavras do Jogo</h2>
-                </div>
+      <div className="container mx-auto px-4 py-8">
+        <h1 className="text-2xl font-bold mb-6 text-gray-800">Administração de Brincadeiras</h1>
+        <div className="flex gap-4 mb-8 flex-wrap">
+          {gameTabs.map(tab => (
+            <button
+              key={tab.key}
+              className={`px-4 py-2 rounded-lg font-semibold transition-colors mb-2 ${activeTab === tab.key ? 'bg-purple-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+              onClick={() => setActiveTab(tab.key)}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
 
-                <div className="space-y-4">
-                  <div className="flex justify-between items-center">
-                    <p className="text-gray-600">
-                      Gerencie as palavras do jogo "Descubra a Palavra"
-                    </p>
-                    <button
-                      onClick={openAddModal}
-                      className="inline-flex items-center px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors"
-                    >
-                      <Plus size={16} className="mr-2" />
-                      Nova Palavra
-                    </button>
-                  </div>
-
-                  {gameWords.length > 0 ? (
-                    <div className="space-y-3">
-                      {gameWords.map((word) => (
-                        <div
-                          key={word.id}
-                          className={`p-4 rounded-lg border-2 transition-all ${
-                            word.is_active 
-                              ? 'border-green-300 bg-green-50' 
-                              : 'border-gray-200 bg-gray-50'
-                          }`}
-                        >
-                          <div className="flex items-center justify-between">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-3">
-                                <span className="font-bold text-lg text-gray-800">
-                                  {word.word.toUpperCase()}
-                                </span>
-                                {word.is_active && (
-                                  <span className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full">
-                                    ATIVA
-                                  </span>
-                                )}
-                              </div>
-                              {word.hint && (
-                                <p className="text-sm text-gray-600 mt-1">
-                                  <strong>Dica:</strong> {word.hint}
-                                </p>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-2">
-                              {!word.is_active && (
-                                <button
-                                  onClick={() => handleActivateWord(word.id)}
-                                  className="px-3 py-1 bg-green-500 text-white text-sm rounded hover:bg-green-600 transition-colors"
-                                >
-                                  Ativar
-                                </button>
-                              )}
-                              <button
-                                onClick={() => openEditModal(word)}
-                                className="p-2 text-blue-600 hover:bg-blue-50 rounded transition-colors"
-                                title="Editar"
-                              >
-                                <Edit size={16} />
-                              </button>
-                              <button
-                                onClick={() => openDeleteModal(word)}
-                                className="p-2 text-red-600 hover:bg-red-50 rounded transition-colors"
-                                title="Excluir"
-                              >
-                                <Trash2 size={16} />
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="text-center py-8 text-gray-500">
-                      <Brain size={48} className="mx-auto mb-4 text-gray-300" />
-                      <p>Nenhuma palavra cadastrada ainda.</p>
-                      <p className="text-sm">Adicione palavras para o jogo funcionar!</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Palavras do Caça Palavras */}
-            <div>
-              <h2 className="text-xl font-semibold mb-4">Palavras do Caça Palavras</h2>
-              <div className="bg-white rounded-xl shadow-lg p-6">
-                <div className="flex items-center mb-6">
-                  <Search className="text-purple-500 mr-3" size={24} />
-                  <h2 className="text-xl font-bold text-gray-800">Gerenciar Palavras</h2>
-                </div>
-
-                <div className="space-y-4">
-                  <div className="flex justify-between items-center">
-                    <p className="text-gray-600">
-                      Gerencie as palavras do jogo "Caça Palavras"
-                    </p>
-                    <button
-                      onClick={openAddSearchWordModal}
-                      className="inline-flex items-center px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors"
-                    >
-                      <Plus size={16} className="mr-2" />
-                      Nova Palavra
-                    </button>
-                  </div>
-
-                  {wordSearchWords.length > 0 ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {wordSearchWords.map((word) => (
-                        <div
-                          key={word.id}
-                          className={`p-4 rounded-xl border transition-all shadow-sm bg-white flex flex-col min-h-[110px] justify-between relative
-                            ${word.is_active ? 'border-green-500 bg-green-300' : 'border-gray-200 bg-gray-50'}`}
-                        >
-                          <div className="flex items-center justify-center gap-2 mb-2 w-full">
-                            <button
-                              onClick={() => handleToggleSearchWord(word.id, word.is_active)}
-                              className={`p-1 rounded-full border border-transparent hover:border-green-200 transition-colors ${word.is_active ? 'text-red-500 hover:bg-red-50' : 'text-green-600 hover:bg-green-50'}`}
-                              title={word.is_active ? 'Desativar' : 'Ativar'}
-                            >
-                              {word.is_active ? <Lock size={16} /> : <Unlock size={16} />}
-                            </button>
-                            <button
-                              onClick={() => openEditSearchWordModal(word)}
-                              className="p-1 rounded-full text-blue-600 hover:bg-blue-50 transition-colors"
-                              title="Editar"
-                            >
-                              <Edit size={16} />
-                            </button>
-                            <button
-                              onClick={() => {
-                                setWordToDelete(word);
-                                setShowDeleteModal(true);
-                              }}
-                              className="p-1 rounded-full text-red-600 hover:bg-red-50 transition-colors"
-                              title="Excluir"
-                            >
-                              <Trash2 size={16} />
-                            </button>
-                          </div>
-                          <div className="flex flex-col items-center justify-center mb-1 w-full">
-                            <span className="font-bold text-lg text-gray-800 text-center truncate w-full">{word.word.toUpperCase()}</span>
-                            {word.is_active && (
-                              <span className="mt-1 px-2 py-0.5 bg-green-100 text-green-700 text-xs rounded-full font-semibold whitespace-nowrap">ATIVA</span>
-                            )}
-                          </div>
-                          <span className="text-xs text-gray-500 font-medium block truncate text-center">Categoria: {word.category}</span>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="text-center py-8 text-gray-500">
-                      <Search size={48} className="mx-auto mb-4 text-gray-300" />
-                      <p>Nenhuma palavra cadastrada ainda.</p>
-                      <p className="text-sm">Adicione palavras para o jogo funcionar!</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Configurar Adivinhe o Número */}
-            <div className="mt-12">
-              <h3 className="text-lg font-semibold flex items-center gap-2 mb-4"><Zap size={20}/>Configurar "Adivinhe o Número"</h3>
-              <div className="flex items-center gap-3">
-                <input
-                  type="number"
-                  min={1}
-                  max={100}
-                  value={secretInput}
-                  onChange={e => setSecretInput(e.target.value)}
-                  className="w-32 px-3 py-2 border rounded-lg"
-                />
-                <button
-                  onClick={saveSecretNumber}
-                  disabled={savingSecret}
-                  className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-semibold"
-                >
-                  {savingSecret ? 'Salvando...' : 'Salvar Número'}
-                </button>
-              </div>
-              {currentSecret !== null && (
-                <p className="text-sm text-gray-600 mt-2">Número ativo: <span className="font-semibold">{currentSecret}</span></p>
-              )}
-            </div>
-
-            <div>
-              <h2 className="text-xl font-semibold mb-4">Controle de Acesso aos Jogos</h2>
-              <div className="bg-white rounded-xl shadow-lg p-6">
-                <div className="flex items-center mb-6">
-                  <Gamepad2 className="text-primary mr-3" size={24} />
-                  <h2 className="text-xl font-bold text-gray-800">Liberar/Bloquear Jogos</h2>
-                </div>
-
-                <div className="space-y-4">
-                  <div className="mb-4">
-                    <p className="text-gray-600">
-                      Controle quais jogos os usuários podem acessar. Jogos bloqueados aparecerão com cadeado.
-                    </p>
-                  </div>
-
-                  {gameSettingsLoading ? (
-                    <div className="text-center py-8 text-gray-500">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-                      <p>Carregando configurações...</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-3">
-                      {[
-                        { id: 'word_guess', name: 'Descubra a Palavra', icon: Gamepad2, color: 'text-blue-600' },
-                        { id: 'number_guess', name: 'Adivinhe o Número', icon: Hash, color: 'text-green-600' },
-                        { id: 'memory_game', name: 'Jogo da Memória', icon: Brain, color: 'text-pink-600' },
-                        { id: 'quiz_game', name: 'Quiz Conhecimentos', icon: HelpCircle, color: 'text-orange-600' },
-                        { id: 'word_search', name: 'Caça Palavras', icon: Search, color: 'text-purple-600' },
-                        { id: 'hangman_game', name: 'Jogo da Forca', icon: BookOpen, color: 'text-yellow-600' },
-                      ].map((game) => {
-                        const Icon = game.icon;
-                        const setting = gameSettings.find(s => s.game_name === game.id);
-                        const isEnabled = setting?.is_enabled || false;
-                        
-                        return (
-                          <div
-                            key={game.id}
-                            className={`p-4 rounded-lg border-2 transition-all ${
-                              isEnabled 
-                                ? 'border-green-300 bg-green-50' 
-                                : 'border-red-300 bg-red-50'
-                            }`}
-                          >
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-3">
-                                <Icon className={`${game.color} w-6 h-6`} />
-                                <div>
-                                  <span className="font-bold text-lg text-gray-800">
-                                    {game.name}
-                                  </span>
-                                  <div className="flex items-center gap-2 mt-1">
-                                    {isEnabled ? (
-                                      <>
-                                        <Unlock className="w-4 h-4 text-green-600" />
-                                        <span className="text-sm text-green-700 font-medium">
-                                          Liberado para usuários
-                                        </span>
-                                      </>
-                                    ) : (
-                                      <>
-                                        <Lock className="w-4 h-4 text-red-600" />
-                                        <span className="text-sm text-red-700 font-medium">
-                                          Bloqueado para usuários
-                                        </span>
-                                      </>
-                                    )}
-                                  </div>
-                                </div>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <button
-                                  onClick={() => updateGameSetting(game.id, !isEnabled)}
-                                  className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                                    isEnabled
-                                      ? 'bg-red-500 text-white hover:bg-red-600'
-                                      : 'bg-green-500 text-white hover:bg-green-600'
-                                  }`}
-                                >
-                                  {isEnabled ? 'Bloquear' : 'Liberar'}
-                                </button>
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Danger Zone: Limpar Hall da Fama */}
-            <div className="mt-12 border-t pt-8">
-              <h3 className="text-lg font-semibold text-red-600 flex items-center gap-2 mb-4"><AlertTriangle size={20}/>Danger Zone</h3>
+        {activeTab === 'quiz_game' && (
+          <div className="bg-white rounded-xl shadow-lg p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold text-gray-800">Perguntas do Quiz</h2>
               <button
-                onClick={() => setShowWinnersModal(true)}
-                className="bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-lg font-semibold"
+                className="px-4 py-2 bg-green-500 text-white rounded-lg font-semibold hover:bg-green-600 transition-colors"
+                onClick={() => openQuizModal()}
               >
-                Excluir TODOS os registros do Hall da Fama
+                + Nova Pergunta
               </button>
             </div>
-          </div>
-
-          {showWordModal && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-              <motion.div
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="bg-white rounded-xl p-6 w-full max-w-md mx-4"
-              >
-                <h3 className="text-xl font-bold text-gray-800 mb-4">
-                  {editingWord ? 'Editar Palavra' : 'Nova Palavra'}
-                </h3>
-                
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Palavra *
-                    </label>
-                    <input
-                      type="text"
-                      value={newWord.word}
-                      onChange={(e) => setNewWord(prev => ({ ...prev, word: e.target.value }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-                      placeholder="Digite a palavra..."
-                      maxLength={20}
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Dica (opcional)
-                    </label>
-                    <textarea
-                      value={newWord.hint}
-                      onChange={(e) => setNewWord(prev => ({ ...prev, hint: e.target.value }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-                      placeholder="Digite uma dica para ajudar os jogadores..."
-                      rows={3}
-                      maxLength={200}
-                    />
-                  </div>
-                </div>
-                
-                <div className="flex gap-3 mt-6">
-                  <button
-                    onClick={() => setShowWordModal(false)}
-                    className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    onClick={handleSaveWord}
-                    className="flex-1 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/80 transition-colors"
-                  >
-                    {editingWord ? 'Atualizar' : 'Adicionar'}
-                  </button>
-                </div>
-              </motion.div>
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-sm">
+                <thead>
+                  <tr className="bg-gray-50">
+                    <th className="px-4 py-2 text-left">Pergunta</th>
+                    <th className="px-4 py-2 text-left">Alternativas</th>
+                    <th className="px-4 py-2 text-left">Correta</th>
+                    <th className="px-4 py-2 text-left">Ações</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {quizLoading ? (
+                    <tr><td colSpan={4} className="text-center py-4">Carregando...</td></tr>
+                  ) : quizQuestions.length === 0 ? (
+                    <tr><td colSpan={4} className="text-center py-4">Nenhuma pergunta cadastrada.</td></tr>
+                  ) : quizQuestions.map((q) => (
+                    <tr key={q.id}>
+                      <td className="px-4 py-2">{q.question_text}</td>
+                      <td className="px-4 py-2">{q.options.join(', ')}</td>
+                      <td className="px-4 py-2">{q.options.find((opt, idx) => String(idx) === q.correct_answer) || q.correct_answer}</td>
+                      <td className="px-4 py-2">
+                        <button className="text-blue-600 hover:underline mr-2" onClick={() => openQuizModal(q)}>Editar</button>
+                        <button className="text-red-600 hover:underline" onClick={() => handleDeleteQuizQuestion(q.id)}>Excluir</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-          )}
-
-          {/* Modal para Palavras do Caça Palavras */}
-          {showSearchWordModal && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-              <motion.div
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="bg-white rounded-xl p-6 w-full max-w-md mx-4"
-              >
-                <h3 className="text-xl font-bold text-gray-800 mb-4">
-                  {editingSearchWord ? 'Editar Palavra' : 'Nova Palavra'}
-                </h3>
-                
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Palavra *
-                    </label>
-                    <input
-                      type="text"
-                      value={newSearchWord.word}
-                      onChange={(e) => setNewSearchWord(prev => ({ ...prev, word: e.target.value }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                      placeholder="Digite a palavra..."
-                      maxLength={15}
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Categoria
-                    </label>
-                    <select
-                      value={newSearchWord.category}
-                      onChange={(e) => setNewSearchWord(prev => ({ ...prev, category: e.target.value }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                    >
-                      <option value="geral">Geral</option>
-                      <option value="programacao">Programação</option>
-                      <option value="tecnologia">Tecnologia</option>
-                      <option value="ciencia">Ciência</option>
-                      <option value="esportes">Esportes</option>
-                      <option value="animais">Animais</option>
-                      <option value="cores">Cores</option>
-                      <option value="comida">Comida</option>
-                    </select>
-                  </div>
-                </div>
-                
-                <div className="flex gap-3 mt-6">
-                  <button
-                    onClick={handleSaveSearchWord}
-                    className="flex-1 bg-purple-500 text-white px-4 py-2 rounded-lg hover:bg-purple-600 transition-colors"
-                  >
-                    {editingSearchWord ? 'Atualizar' : 'Adicionar'}
-                  </button>
-                  <button
-                    onClick={() => {
-                      setShowSearchWordModal(false);
-                      setEditingSearchWord(null);
-                      setNewSearchWord({ word: '', category: 'geral' });
-                    }}
-                    className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-                  >
-                    Cancelar
-                  </button>
-                </div>
-              </motion.div>
-            </div>
-          )}
-
-          {showDeleteModal && wordToDelete && (
-            <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
-              <motion.div
-                initial={{ opacity: 0, scale: 0.9, y: 20 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.9, y: 20 }}
-                className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden"
-              >
-                {/* Header */}
-                <div className="bg-gradient-to-r from-red-500 to-red-600 px-6 py-4 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="bg-white/20 rounded-full p-2">
-                      <AlertTriangle className="w-6 h-6 text-white" />
+            {/* Modal de cadastro/edição de pergunta */}
+            {showQuizModal && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+                <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-lg relative animate-fadeIn">
+                  <button className="absolute top-2 right-2 text-gray-500 hover:text-gray-700" onClick={closeQuizModal}><X size={22} /></button>
+                  <h3 className="text-lg font-bold mb-4">{editingQuiz ? 'Editar Pergunta' : 'Nova Pergunta'}</h3>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-sm font-medium mb-1">Pergunta *</label>
+                      <input
+                        type="text"
+                        name="question_text"
+                        className="w-full border rounded px-3 py-2"
+                        value={quizForm.question_text}
+                        onChange={handleQuizFormChange}
+                        disabled={quizLoading}
+                      />
                     </div>
-                    <h3 className="text-xl font-bold text-white">
-                      Confirmar Exclusão
-                    </h3>
-                  </div>
-                  <button
-                    onClick={closeDeleteModal}
-                    className="text-white/80 hover:text-white transition-colors p-1 rounded-full hover:bg-white/20"
-                    disabled={isDeleting}
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
-                </div>
-
-                {/* Content */}
-                <div className="p-6">
-                  <div className="text-center mb-6">
-                    <div className="bg-red-50 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
-                      <Trash2 className="w-8 h-8 text-red-500" />
+                    <div>
+                      <label className="block text-sm font-medium mb-1">Alternativas *</label>
+                      {quizForm.options.map((opt, idx) => (
+                        <input
+                          key={idx}
+                          type="text"
+                          className="w-full border rounded px-3 py-2 mb-1"
+                          value={opt}
+                          onChange={e => handleQuizFormChange(e, idx)}
+                          placeholder={`Alternativa ${idx + 1}`}
+                          disabled={quizLoading}
+                        />
+                      ))}
                     </div>
-                    <p className="text-gray-700 text-lg mb-2">
-                      Tem certeza que deseja excluir a palavra
-                    </p>
-                    <div className="bg-gray-50 rounded-lg p-3 border-l-4 border-red-500">
-                      <span className="font-bold text-xl text-gray-800">
-                        "{wordToDelete.word.toUpperCase()}"
-                      </span>
-                      {wordToDelete.hint && (
-                        <p className="text-sm text-gray-600 mt-1">
-                          <strong>Dica:</strong> {wordToDelete.hint}
-                        </p>
-                      )}
+                    <div>
+                      <label className="block text-sm font-medium mb-1">Alternativa Correta *</label>
+                      <select
+                        name="correct_answer"
+                        className="w-full border rounded px-3 py-2"
+                        value={quizForm.correct_answer}
+                        onChange={handleQuizFormChange}
+                        disabled={quizLoading}
+                      >
+                        <option value="">Selecione</option>
+                        {quizForm.options.map((opt, idx) => (
+                          <option key={idx} value={String(idx)}>{opt || `Alternativa ${idx + 1}`}</option>
+                        ))}
+                      </select>
                     </div>
-                  </div>
-
-                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
-                    <div className="flex items-start gap-3">
-                      <AlertTriangle className="w-5 h-5 text-yellow-600 mt-0.5 flex-shrink-0" />
-                      <div>
-                        <h4 className="font-medium text-yellow-800 mb-1">Atenção!</h4>
-                        <p className="text-sm text-yellow-700">
-                          Esta ação não pode ser desfeita. A palavra será permanentemente removida do sistema.
-                        </p>
+                    <div className="flex gap-2">
+                      <div className="flex-1">
+                        <label className="block text-sm font-medium mb-1">Categoria</label>
+                        <select
+                          className="w-full border rounded px-3 py-2 appearance-none"
+                          value={quizForm.category || 'geral'}
+                          onChange={e => setQuizForm({ ...quizForm, category: e.target.value })}
+                          disabled={quizLoading}
+                        >
+                          <option value="geral">Geral</option>
+                          <option value="animais">Animais</option>
+                          <option value="cores">Cores</option>
+                          <option value="frutas">Frutas</option>
+                          <option value="esportes">Esportes</option>
+                          <option value="paises">Países</option>
+                          <option value="objetos">Objetos</option>
+                          <option value="profissoes">Profissões</option>
+                          <option value="alimentos">Alimentos</option>
+                          <option value="outros">Outros</option>
+                        </select>
+                      </div>
+                      <div className="flex-1">
+                        <label className="block text-sm font-medium mb-1">Dificuldade</label>
+                        <select
+                          className="w-full border rounded px-3 py-2 appearance-none"
+                          value={quizForm.difficulty || 'facil'}
+                          onChange={e => setQuizForm({ ...quizForm, difficulty: e.target.value })}
+                          disabled={quizLoading}
+                        >
+                          <option value="facil">Fácil</option>
+                          <option value="medio">Médio</option>
+                          <option value="dificil">Difícil</option>
+                        </select>
                       </div>
                     </div>
                   </div>
-
-                  {/* Actions */}
-                  <div className="flex gap-3">
-                    <button
-                      onClick={closeDeleteModal}
-                      className="flex-1 px-4 py-3 border-2 border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition-all duration-200 font-medium"
-                      disabled={isDeleting}
-                    >
-                      Cancelar
-                    </button>
-                    <button
-                      onClick={confirmDeleteWord}
-                      className="flex-1 px-4 py-3 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-xl hover:from-red-600 hover:to-red-700 transition-all duration-200 font-medium shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                      disabled={isDeleting}
-                    >
-                      {isDeleting ? (
-                        <>
-                          <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
-                          Excluindo...
-                        </>
-                      ) : (
-                        <>
-                          <Trash2 className="w-4 h-4" />
-                          Excluir Palavra
-                        </>
-                      )}
-                    </button>
+                  <div className="flex justify-end mt-6 gap-2">
+                    <button className="px-4 py-2 rounded bg-gray-200 text-gray-700" onClick={closeQuizModal} disabled={quizLoading}>Cancelar</button>
+                    <button className="px-4 py-2 rounded bg-purple-600 text-white font-semibold hover:bg-purple-700" onClick={handleSaveQuizQuestion} disabled={quizLoading}>{editingQuiz ? 'Salvar' : 'Cadastrar'}</button>
                   </div>
                 </div>
-              </motion.div>
-            </div>
-          )}
-
-          {/* Modal confirmação wipe winners */}
-          {showWinnersModal && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-              <motion.div className="bg-white rounded-xl p-6 max-w-md w-full" initial={{scale:0.9,opacity:0}} animate={{scale:1,opacity:1}}>
-                <div className="text-center">
-                  <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4"/>
-                  <h4 className="text-xl font-bold mb-2">Confirmar limpeza do Hall da Fama?</h4>
-                  <p className="text-gray-700 mb-6">Esta ação irá remover permanentemente todos os registros de ganhadores. Não poderá ser desfeita.</p>
-                  <div className="flex justify-center gap-3">
-                    <button className="px-4 py-2 rounded-lg border" onClick={()=>setShowWinnersModal(false)} disabled={isWiping}>Cancelar</button>
-                    <button className="px-4 py-2 rounded-lg bg-red-600 text-white" onClick={wipeWinners} disabled={isWiping}>{isWiping ? 'Excluindo...' : 'Confirmar'}</button>
+              </div>
+            )}
+            {/* Modal de confirmação de exclusão do Quiz */}
+            {quizDeleteId && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+                <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md relative animate-fadeIn">
+                  <div className="flex items-center mb-4">
+                    <AlertCircle className="text-red-500 mr-2" size={32} />
+                    <h3 className="text-lg font-bold text-gray-800">Confirmar Exclusão</h3>
+                  </div>
+                  <p className="mb-6 text-gray-700">Tem certeza que deseja <span className="text-red-600 font-semibold">excluir</span> esta pergunta do Quiz? Esta ação não pode ser desfeita.</p>
+                  <div className="flex justify-end gap-2">
+                    <button className="px-4 py-2 rounded bg-gray-200 text-gray-700" onClick={closeQuizDeleteModal} disabled={quizDeleteLoading}>Cancelar</button>
+                    <button className="px-4 py-2 rounded bg-red-600 text-white font-semibold hover:bg-red-700" onClick={confirmDeleteQuizQuestion} disabled={quizDeleteLoading}>{quizDeleteLoading ? 'Excluindo...' : 'Excluir'}</button>
                   </div>
                 </div>
-              </motion.div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeTab === 'hangman_game' && (
+          <div className="bg-white rounded-xl shadow-lg p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold text-gray-800">Palavras da Forca</h2>
+              <button
+                className="px-4 py-2 bg-green-500 text-white rounded-lg font-semibold hover:bg-green-600 transition-colors"
+                onClick={() => openHangmanModal()}
+              >
+                + Nova Palavra
+              </button>
             </div>
-          )}
-        </div>
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-sm">
+                <thead>
+                  <tr className="bg-gray-50">
+                    <th className="px-4 py-2 text-left">Palavra</th>
+                    <th className="px-4 py-2 text-left">Dica</th>
+                    <th className="px-4 py-2 text-left">Ativa?</th>
+                    <th className="px-4 py-2 text-left">Ações</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {hangmanLoading ? (
+                    <tr><td colSpan={4} className="text-center py-4">Carregando...</td></tr>
+                  ) : hangmanWords.length === 0 ? (
+                    <tr><td colSpan={4} className="text-center py-4">Nenhuma palavra cadastrada.</td></tr>
+                  ) : hangmanWords.map((w) => (
+                    <tr key={w.id}>
+                      <td className="px-4 py-2">{w.word}</td>
+                      <td className="px-4 py-2">{w.hint}</td>
+                      <td className="px-4 py-2">{w.is_active ? 'Sim' : 'Não'}</td>
+                      <td className="px-4 py-2">
+                        <button className="text-blue-600 hover:underline mr-2" onClick={() => openHangmanModal(w)}>Editar</button>
+                        <button className="text-red-600 hover:underline mr-2" onClick={() => handleDeleteHangmanWord(w.id)}>Excluir</button>
+                        <button className="text-green-600 hover:underline" onClick={() => handleActivateHangmanWord(w.id)} disabled={w.is_active}>Ativar</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {/* Modal de cadastro/edição de palavra */}
+            {showHangmanModal && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+                <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-lg relative animate-fadeIn">
+                  <button className="absolute top-2 right-2 text-gray-500 hover:text-gray-700" onClick={closeHangmanModal}><X size={22} /></button>
+                  <h3 className="text-lg font-bold mb-4">{editingHangman ? 'Editar Palavra' : 'Nova Palavra'}</h3>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-sm font-medium mb-1">Palavra *</label>
+                      <input
+                        type="text"
+                        name="word"
+                        className="w-full border rounded px-3 py-2"
+                        value={hangmanForm.word}
+                        onChange={handleHangmanFormChange}
+                        disabled={hangmanLoading}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-1">Dica</label>
+                      <input
+                        type="text"
+                        name="hint"
+                        className="w-full border rounded px-3 py-2"
+                        value={hangmanForm.hint}
+                        onChange={handleHangmanFormChange}
+                        disabled={hangmanLoading}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-1">Categoria</label>
+                      <select
+                        className="w-full border rounded px-3 py-2 appearance-none"
+                        value={editingHangman ? editingHangman.category : hangmanForm.category || 'geral'}
+                        onChange={e => editingHangman ? setEditingHangman({ ...editingHangman, category: e.target.value }) : setHangmanForm({ ...hangmanForm, category: e.target.value })}
+                        disabled={hangmanLoading}
+                      >
+                        <option value="geral">Geral</option>
+                        <option value="animais">Animais</option>
+                        <option value="cores">Cores</option>
+                        <option value="frutas">Frutas</option>
+                        <option value="esportes">Esportes</option>
+                        <option value="paises">Países</option>
+                        <option value="objetos">Objetos</option>
+                        <option value="profissoes">Profissões</option>
+                        <option value="alimentos">Alimentos</option>
+                        <option value="outros">Outros</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div className="flex justify-end mt-6 gap-2">
+                    <button className="px-4 py-2 rounded bg-gray-200 text-gray-700" onClick={closeHangmanModal} disabled={hangmanLoading}>Cancelar</button>
+                    <button className="px-4 py-2 rounded bg-purple-600 text-white font-semibold hover:bg-purple-700" onClick={handleSaveHangmanWord} disabled={hangmanLoading}>{editingHangman ? 'Salvar' : 'Cadastrar'}</button>
+                  </div>
+                </div>
+              </div>
+            )}
+            {/* Modal de confirmação de exclusão */}
+            {hangmanDeleteId && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+                <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md relative animate-fadeIn">
+                  <div className="flex items-center mb-4">
+                    <AlertCircle className="text-red-500 mr-2" size={32} />
+                    <h3 className="text-lg font-bold text-gray-800">Confirmar Exclusão</h3>
+                  </div>
+                  <p className="mb-6 text-gray-700">Tem certeza que deseja <span className="text-red-600 font-semibold">excluir</span> esta palavra da Forca? Esta ação não pode ser desfeita.</p>
+                  <div className="flex justify-end gap-2">
+                    <button className="px-4 py-2 rounded bg-gray-200 text-gray-700" onClick={closeHangmanDeleteModal} disabled={hangmanDeleteLoading}>Cancelar</button>
+                    <button className="px-4 py-2 rounded bg-red-600 text-white font-semibold hover:bg-red-700" onClick={confirmDeleteHangmanWord} disabled={hangmanDeleteLoading}>{hangmanDeleteLoading ? 'Excluindo...' : 'Excluir'}</button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeTab === 'word_guess' && (
+          <div className="bg-white rounded-xl shadow-lg p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold text-gray-800">Descubra a Palavra</h2>
+              <button
+                className="px-4 py-2 bg-green-500 text-white rounded-lg font-semibold hover:bg-green-600 transition-colors"
+                onClick={() => openWordGuessModal()}
+              >
+                + Nova Palavra
+              </button>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-sm">
+                <thead>
+                  <tr className="bg-gray-50">
+                    <th className="px-4 py-2 text-left">Palavra</th>
+                    <th className="px-4 py-2 text-left">Dica</th>
+                    <th className="px-4 py-2 text-left">Ativa?</th>
+                    <th className="px-4 py-2 text-left">Ações</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {wordGuessLoading ? (
+                    <tr><td colSpan={4} className="text-center py-4">Carregando...</td></tr>
+                  ) : wordGuessWords.length === 0 ? (
+                    <tr><td colSpan={4} className="text-center py-4">Nenhuma palavra cadastrada.</td></tr>
+                  ) : wordGuessWords.map((w) => (
+                    <tr key={w.id}>
+                      <td className="px-4 py-2">{w.word}</td>
+                      <td className="px-4 py-2">{w.hint}</td>
+                      <td className="px-4 py-2">{w.is_active ? 'Sim' : 'Não'}</td>
+                      <td className="px-4 py-2">
+                        <button className="text-blue-600 hover:underline mr-2" onClick={() => openWordGuessModal(w)}>Editar</button>
+                        <button className="text-red-600 hover:underline mr-2" onClick={() => handleDeleteWordGuess(w.id)}>Excluir</button>
+                        <button className="text-green-600 hover:underline" onClick={() => handleActivateWordGuess(w.id)} disabled={w.is_active}>Ativar</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {/* Modal de cadastro/edição de palavra */}
+            {showWordGuessModal && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+                <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-lg relative animate-fadeIn">
+                  <button className="absolute top-2 right-2 text-gray-500 hover:text-gray-700" onClick={closeWordGuessModal}><X size={22} /></button>
+                  <h3 className="text-lg font-bold mb-4">{editingWordGuess ? 'Editar Palavra' : 'Nova Palavra'}</h3>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-sm font-medium mb-1">Palavra *</label>
+                      <input
+                        type="text"
+                        name="word"
+                        className="w-full border rounded px-3 py-2"
+                        value={wordGuessForm.word}
+                        onChange={handleWordGuessFormChange}
+                        disabled={wordGuessLoading}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-1">Dica *</label>
+                      <input
+                        type="text"
+                        name="hint"
+                        className="w-full border rounded px-3 py-2"
+                        value={wordGuessForm.hint}
+                        onChange={handleWordGuessFormChange}
+                        disabled={wordGuessLoading}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-1">Categoria</label>
+                      <select
+                        className="w-full border rounded px-3 py-2 appearance-none"
+                        value={editingWordGuess ? editingWordGuess.category : wordGuessForm.category || 'geral'}
+                        onChange={e => editingWordGuess ? setEditingWordGuess({ ...editingWordGuess, category: e.target.value }) : setWordGuessForm({ ...wordGuessForm, category: e.target.value })}
+                        disabled={wordGuessLoading}
+                      >
+                        <option value="geral">Geral</option>
+                        <option value="animais">Animais</option>
+                        <option value="cores">Cores</option>
+                        <option value="frutas">Frutas</option>
+                        <option value="esportes">Esportes</option>
+                        <option value="paises">Países</option>
+                        <option value="objetos">Objetos</option>
+                        <option value="profissoes">Profissões</option>
+                        <option value="alimentos">Alimentos</option>
+                        <option value="outros">Outros</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div className="flex justify-end mt-6 gap-2">
+                    <button className="px-4 py-2 rounded bg-gray-200 text-gray-700" onClick={closeWordGuessModal} disabled={wordGuessLoading}>Cancelar</button>
+                    <button className="px-4 py-2 rounded bg-purple-600 text-white font-semibold hover:bg-purple-700" onClick={handleSaveWordGuess} disabled={wordGuessLoading}>{editingWordGuess ? 'Salvar' : 'Cadastrar'}</button>
+                  </div>
+                </div>
+              </div>
+            )}
+            {/* Modal de confirmação de exclusão */}
+            {wordGuessDeleteId && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+                <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md relative animate-fadeIn">
+                  <div className="flex items-center mb-4">
+                    <AlertCircle className="text-red-500 mr-2" size={32} />
+                    <h3 className="text-lg font-bold text-gray-800">Confirmar Exclusão</h3>
+                  </div>
+                  <p className="mb-6 text-gray-700">Tem certeza que deseja <span className="text-red-600 font-semibold">excluir</span> esta palavra? Esta ação não pode ser desfeita.</p>
+                  <div className="flex justify-end gap-2">
+                    <button className="px-4 py-2 rounded bg-gray-200 text-gray-700" onClick={closeWordGuessDeleteModal} disabled={wordGuessDeleteLoading}>Cancelar</button>
+                    <button className="px-4 py-2 rounded bg-red-600 text-white font-semibold hover:bg-red-700" onClick={confirmDeleteWordGuess} disabled={wordGuessDeleteLoading}>{wordGuessDeleteLoading ? 'Excluindo...' : 'Excluir'}</button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeTab === 'number_guess' && (
+          <div className="bg-white rounded-xl shadow-lg p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold text-gray-800">Adivinhe o Número</h2>
+              <button
+                className="px-4 py-2 bg-green-500 text-white rounded-lg font-semibold hover:bg-green-600 transition-colors"
+                onClick={() => setShowSecretModal(true)}
+              >
+                + Novo Número
+              </button>
+            </div>
+            <p className="text-gray-600 mb-4">Configure o número secreto do jogo aqui.</p>
+            <div className="mb-4">
+              <span className="font-medium">Número atual: </span>
+              <span className="text-lg font-bold text-primary">{currentSecret !== null ? currentSecret : 'Nenhum cadastrado'}</span>
+            </div>
+            {/* Modal de cadastro/edição do número secreto */}
+            {showSecretModal && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+                <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md relative animate-fadeIn">
+                  <button className="absolute top-2 right-2 text-gray-500 hover:text-gray-700" onClick={() => setShowSecretModal(false)}><X size={22} /></button>
+                  <h3 className="text-lg font-bold mb-4">Novo Número Secreto</h3>
+                  <input
+                    type="number"
+                    className="w-full border rounded px-3 py-2 mb-4"
+                    value={secretInput}
+                    onChange={e => setSecretInput(e.target.value)}
+                    min={1}
+                    max={9999}
+                    disabled={savingSecret}
+                  />
+                  <div className="flex justify-end gap-2">
+                    <button className="px-4 py-2 rounded bg-gray-200 text-gray-700" onClick={() => setShowSecretModal(false)} disabled={savingSecret}>Cancelar</button>
+                    <button className="px-4 py-2 rounded bg-purple-600 text-white font-semibold hover:bg-purple-700" onClick={saveSecretNumber} disabled={savingSecret || !secretInput}>Salvar</button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeTab === 'word_search' && (
+          <div className="bg-white rounded-xl shadow-lg p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold text-gray-800">Caça-palavras</h2>
+              <button
+                className="px-4 py-2 bg-green-500 text-white rounded-lg font-semibold hover:bg-green-600 transition-colors"
+                onClick={() => setShowSearchWordModal(true)}
+              >
+                + Nova Palavra
+              </button>
+            </div>
+            <p className="text-gray-600 mb-4">Gerencie as palavras do Caça-palavras aqui.</p>
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-sm">
+                <thead>
+                  <tr className="bg-gray-50">
+                    <th className="px-4 py-2 text-left">Palavra</th>
+                    <th className="px-4 py-2 text-left">Categoria</th>
+                    <th className="px-4 py-2 text-left">Ativa?</th>
+                    <th className="px-4 py-2 text-left">Ações</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {wordSearchWords.length === 0 ? (
+                    <tr><td colSpan={4} className="text-center py-4">Nenhuma palavra cadastrada.</td></tr>
+                  ) : wordSearchWords.map((w) => (
+                    <tr key={w.id}>
+                      <td className="px-4 py-2">{w.word}</td>
+                      <td className="px-4 py-2">{w.category || '-'}</td>
+                      <td className="px-4 py-2">{w.is_active ? 'Sim' : 'Não'}</td>
+                      <td className="px-4 py-2">
+                        <button className="text-blue-600 hover:underline mr-2" onClick={() => { setEditingSearchWord(w); setShowSearchWordModal(true); }}>Editar</button>
+                        <button className="text-red-600 hover:underline" onClick={() => { setWordToDelete(w); setShowDeleteModal(true); }}>Excluir</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {/* Modal de cadastro/edição de palavra */}
+            {showSearchWordModal && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+                <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-lg relative animate-fadeIn">
+                  <button className="absolute top-2 right-2 text-gray-500 hover:text-gray-700" onClick={() => { setShowSearchWordModal(false); setEditingSearchWord(null); }}><X size={22} /></button>
+                  <h3 className="text-lg font-bold mb-4">{editingSearchWord ? 'Editar Palavra' : 'Nova Palavra'}</h3>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-sm font-medium mb-1">Palavra *</label>
+                      <input
+                        type="text"
+                        className="w-full border rounded px-3 py-2"
+                        value={editingSearchWord ? editingSearchWord.word : newSearchWord.word}
+                        onChange={e => editingSearchWord ? setEditingSearchWord({ ...editingSearchWord, word: e.target.value }) : setNewSearchWord({ ...newSearchWord, word: e.target.value })}
+                        disabled={false}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-1">Categoria</label>
+                      <select
+                        className="w-full border rounded px-3 py-2 appearance-none"
+                        value={editingSearchWord ? editingSearchWord.category : newSearchWord.category}
+                        onChange={e => editingSearchWord ? setEditingSearchWord({ ...editingSearchWord, category: e.target.value }) : setNewSearchWord({ ...newSearchWord, category: e.target.value })}
+                        disabled={false}
+                      >
+                        <option value="geral">Geral</option>
+                        <option value="animais">Animais</option>
+                        <option value="cores">Cores</option>
+                        <option value="frutas">Frutas</option>
+                        <option value="esportes">Esportes</option>
+                        <option value="paises">Países</option>
+                        <option value="objetos">Objetos</option>
+                        <option value="profissoes">Profissões</option>
+                        <option value="alimentos">Alimentos</option>
+                        <option value="outros">Outros</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div className="flex justify-end mt-6 gap-2">
+                    <button className="px-4 py-2 rounded bg-gray-200 text-gray-700" onClick={() => { setShowSearchWordModal(false); setEditingSearchWord(null); }}>Cancelar</button>
+                    <button className="px-4 py-2 rounded bg-purple-600 text-white font-semibold hover:bg-purple-700" onClick={editingSearchWord ? handleSaveSearchWord : handleSaveNewSearchWord}>{editingSearchWord ? 'Salvar' : 'Cadastrar'}</button>
+                  </div>
+                </div>
+              </div>
+            )}
+            {/* Modal de confirmação de exclusão */}
+            {showDeleteModal && wordToDelete && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+                <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md relative animate-fadeIn">
+                  <div className="flex items-center mb-4">
+                    <AlertCircle className="text-red-500 mr-2" size={32} />
+                    <h3 className="text-lg font-bold text-gray-800">Confirmar Exclusão</h3>
+                  </div>
+                  <p className="mb-6 text-gray-700">Tem certeza que deseja <span className="text-red-600 font-semibold">excluir</span> esta palavra do Caça-palavras? Esta ação não pode ser desfeita.</p>
+                  <div className="flex justify-end gap-2">
+                    <button className="px-4 py-2 rounded bg-gray-200 text-gray-700" onClick={() => { setShowDeleteModal(false); setWordToDelete(null); }}>Cancelar</button>
+                    <button className="px-4 py-2 rounded bg-red-600 text-white font-semibold hover:bg-red-700" onClick={handleDeleteSearchWord}>{false ? 'Excluindo...' : 'Excluir'}</button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeTab === 'acesso' && (
+          <div className="bg-white rounded-xl shadow-lg p-6">
+            <h2 className="text-xl font-bold text-gray-800 mb-4">Controle de Acesso aos Jogos</h2>
+            <p className="text-gray-600 mb-4">Libere ou bloqueie o acesso dos usuários a cada jogo.</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+              {gameTabs.filter(tab => tab.key !== 'acesso').map(tab => {
+                const enabled = gameSettings.find(s => s.game_name === tab.key)?.is_enabled ?? false;
+                return (
+                  <div key={tab.key} className="flex flex-col items-center justify-center bg-gray-50 rounded-lg p-6 border h-40 shadow-sm">
+                    <span className="font-medium text-gray-800 text-lg mb-2 text-center">{tab.label}</span>
+                    <div className="flex flex-col items-center gap-2 mt-2">
+                      <span className={`flex items-center gap-1 text-sm font-semibold ${enabled ? 'text-green-600' : 'text-red-600'}`}>
+                        {enabled ? (
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                        ) : (
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                        )}
+                        {enabled ? 'Liberado' : 'Bloqueado'}
+                      </span>
+                      {/* Toggle Switch */}
+                      <button
+                        onClick={async () => {
+                          setAccessLoading(tab.key);
+                          await updateGameSetting(tab.key, !enabled);
+                          setAccessLoading(null);
+                        }}
+                        className={`relative w-14 h-8 flex items-center rounded-full p-1 transition-colors duration-300 ${enabled ? 'bg-green-500' : 'bg-gray-300'}`}
+                        aria-label={enabled ? 'Bloquear' : 'Liberar'}
+                        disabled={accessLoading === tab.key}
+                      >
+                        <span
+                          className={`absolute left-1 top-1 w-6 h-6 bg-white rounded-full shadow-md transform transition-transform duration-300 ${enabled ? 'translate-x-6' : ''}`}
+                        />
+                        {accessLoading === tab.key && (
+                          <span className="absolute inset-0 flex items-center justify-center">
+                            <svg className="animate-spin w-5 h-5 text-purple-600" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path></svg>
+                          </span>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
     </AdminLayout>
   );

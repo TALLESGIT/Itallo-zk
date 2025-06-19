@@ -16,7 +16,7 @@ const WordGuessGame: React.FC<WordGuessGameProps> = ({ onBack }) => {
   const [secretWord, setSecretWord] = useState<string>('');
   const [guess, setGuess] = useState<string>('');
   const [attempts, setAttempts] = useState<string[]>([]);
-  const [gameStatus, setGameStatus] = useState<'playing' | 'won' | 'lost'>('playing');
+  const [gameStatus, setGameStatus] = useState<'playing' | 'won' | 'lost' | 'blocked'>('playing');
   const [loading, setLoading] = useState(true);
   const [hint, setHint] = useState<string>('');
   const [timeLeft, setTimeLeft] = useState<number>(59);
@@ -33,6 +33,16 @@ const WordGuessGame: React.FC<WordGuessGameProps> = ({ onBack }) => {
       fetchSecretWord();
     }
   }, [isCoolingDown]);
+
+  // Bloqueio por vitória
+  useEffect(() => {
+    if (secretWord) {
+      const wonKey = `word_guess_won_${secretWord}`;
+      if (localStorage.getItem(wonKey) === 'true') {
+        setGameStatus('blocked');
+      }
+    }
+  }, [secretWord]);
 
   // Timer effect
   useEffect(() => {
@@ -121,9 +131,10 @@ const WordGuessGame: React.FC<WordGuessGameProps> = ({ onBack }) => {
     setAttempts(newAttempts);
 
     if (normalizedGuess === secretWord) {
-      setGameStatus('won');
       setTimerActive(false);
       toast.success('Parabéns! Você descobriu a palavra!');
+      localStorage.setItem(`word_guess_won_${secretWord}`, 'true');
+      setGameStatus('blocked');
       addWinner?.({
         game_id: 'word_guess',
         player_name: getPlayerName(),
@@ -208,6 +219,17 @@ const WordGuessGame: React.FC<WordGuessGameProps> = ({ onBack }) => {
               Nenhuma palavra foi configurada pelo administrador ainda. Volte mais tarde!
             </p>
           </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (gameStatus === 'blocked') {
+    return (
+      <div className="container mx-auto px-4 py-8 flex flex-col items-center justify-center min-h-[60vh]">
+        <div className="bg-green-50 border border-green-200 rounded-xl p-6 text-center max-w-md">
+          <h2 className="text-xl font-bold text-green-800 mb-2">Parabéns!</h2>
+          <p className="text-gray-700 mb-4">Você já descobriu a palavra atual.<br/> Aguarde o administrador trocar a palavra para jogar novamente.</p>
         </div>
       </div>
     );
@@ -306,10 +328,10 @@ const WordGuessGame: React.FC<WordGuessGameProps> = ({ onBack }) => {
           {/* Input and Button */}
           {(gameStatus === 'playing' && !isCoolingDown) && (
             <div className="flex flex-col sm:flex-row gap-3">
-              <input
-                type="text"
-                value={guess}
-                onChange={(e) => setGuess(e.target.value)}
+                <input
+                  type="text"
+                  value={guess}
+                  onChange={(e) => setGuess(e.target.value)}
                 onKeyPress={(e) => {
                   if (e.key === 'Enter') {
                     handleGuess();
@@ -318,41 +340,30 @@ const WordGuessGame: React.FC<WordGuessGameProps> = ({ onBack }) => {
                 placeholder="Digite sua palavra..."
                 className="flex-grow p-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-gray-800"
                 maxLength={secretWord.length}
-                disabled={gameStatus !== 'playing'}
-              />
-              <button
-                onClick={handleGuess}
+                  disabled={gameStatus !== 'playing'}
+                />
+                <button
+                  onClick={handleGuess}
                 className="inline-flex items-center px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors"
                 disabled={gameStatus !== 'playing'}
               >
                 <Trophy className="mr-2" size={20} />
                 Adivinhar
-              </button>
+                </button>
             </div>
           )}
 
           {/* Game Over / Win */}
-          {(gameStatus !== 'playing' && !isCoolingDown) && (
+          {(gameStatus === 'lost' && !isCoolingDown) && (
             <div className="text-center mt-6">
-              {gameStatus === 'won' ? (
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="p-4 bg-green-50 border border-green-200 text-green-800 rounded-lg"
-                >
-                  <CheckCircle className="mx-auto mb-2" size={30} />
-                  <p className="font-bold">Parabéns! Você venceu!</p>
-                </motion.div>
-              ) : (
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="p-4 bg-red-50 border border-red-200 text-red-800 rounded-lg"
-                >
-                  <X className="mx-auto mb-2" size={30} />
-                  <p className="font-bold">Que pena! Você perdeu.</p>
-                </motion.div>
-              )}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="p-4 bg-red-50 border border-red-200 text-red-800 rounded-lg"
+              >
+                <X className="mx-auto mb-2" size={30} />
+                <p className="font-bold">Que pena! Você perdeu.</p>
+              </motion.div>
               <button
                 onClick={resetGame}
                 className="inline-flex items-center px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors mt-4"

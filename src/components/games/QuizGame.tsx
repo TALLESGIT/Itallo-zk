@@ -5,6 +5,7 @@ import { toast } from 'react-toastify';
 import useGameCooldown from '../../hooks/useGameCooldown';
 import { useGameWinners } from '../../hooks/useGameWinners';
 import { useAuth } from '../../contexts/AuthContext';
+import { useGameSettings } from '../../hooks/useGameSettings';
 
 interface QuizGameProps {
   onBack: () => void;
@@ -81,7 +82,7 @@ const QuizGame: React.FC<QuizGameProps> = ({ onBack }) => {
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
   const [score, setScore] = useState(0);
-  const [gameStatus, setGameStatus] = useState<'playing' | 'finished' | 'lost'>('playing');
+  const [gameStatus, setGameStatus] = useState<'playing' | 'finished' | 'lost' | 'blocked'>('playing');
   const [timeLeft, setTimeLeft] = useState(30);
   const [showExplanation, setShowExplanation] = useState(false);
   const [userAnswers, setUserAnswers] = useState<number[]>([]);
@@ -90,6 +91,33 @@ const QuizGame: React.FC<QuizGameProps> = ({ onBack }) => {
   const { isCoolingDown, setCooldown, CooldownMessage } = useGameCooldown(gameId);
   const { addWinner } = useGameWinners();
   const { authState } = useAuth();
+  const { isAdmin, isGameEnabled } = useGameSettings();
+
+  if (!isAdmin && !isGameEnabled('quiz_game')) {
+    return (
+      <div className="container mx-auto px-4 py-8 flex flex-col items-center justify-center min-h-[60vh]">
+        <div className="bg-red-50 border border-red-200 rounded-xl p-6 text-center max-w-md">
+          <h2 className="text-xl font-bold text-red-800 mb-2">Jogo Bloqueado</h2>
+          <p className="text-gray-700 mb-4">O administrador bloqueou temporariamente o acesso ao Quiz de Conhecimentos.<br/>Tente novamente mais tarde.</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Função utilitária para gerar hash simples das perguntas
+  function getQuizHash(questions: Question[]) {
+    return btoa(questions.map(q => q.id + q.question).join('|')).slice(0, 12);
+  }
+  const quizHash = getQuizHash(questions);
+
+  useEffect(() => {
+    if (quizHash) {
+      const wonKey = `quiz_won_${quizHash}`;
+      if (localStorage.getItem(wonKey) === 'true') {
+        setGameStatus('blocked');
+      }
+    }
+  }, [quizHash]);
 
   useEffect(() => {
     if (gameStatus === 'playing' && timeLeft > 0 && !isCoolingDown) {
@@ -136,6 +164,7 @@ const QuizGame: React.FC<QuizGameProps> = ({ onBack }) => {
           toast.error('Que pena! Você não atingiu a pontuação mínima. Tente novamente após o cooldown.');
         } else {
           setGameStatus('finished');
+          localStorage.setItem(`quiz_won_${quizHash}`, 'true');
           addWinner?.({
             game_id: 'quiz_game',
             player_name: getPlayerName(),
@@ -217,62 +246,62 @@ const QuizGame: React.FC<QuizGameProps> = ({ onBack }) => {
           >
             {gameStatus === 'finished' ? (
               <>
-                <div className="text-4xl sm:text-6xl mb-3 sm:mb-4">🎉</div>
-                <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-3 sm:mb-4">Quiz Finalizado!</h2>
-                
-                <div className="bg-gradient-to-r from-primary/10 to-secondary/10 rounded-xl p-4 sm:p-6 mb-4 sm:mb-6">
-                  <div className="text-3xl sm:text-4xl font-bold text-primary mb-2">
-                    {score}/{questions.length}
-                  </div>
-                  <div className="text-sm sm:text-base text-gray-600 mb-3 sm:mb-4">
-                    {((score / questions.length) * 100).toFixed(0)}% de acertos
-                  </div>
-                  <div className="flex justify-center gap-1 mb-3 sm:mb-4">
-                    {Array.from({ length: 5 }, (_, i) => (
-                      <span
-                        key={i}
-                        className={`text-xl sm:text-2xl ${i < getScoreStars() ? 'text-yellow-400' : 'text-gray-300'}`}
-                      >
-                        ⭐
-                      </span>
-                    ))}
-                  </div>
-                  <p className="text-sm sm:text-base text-gray-700 font-medium px-2">{getScoreMessage()}</p>
-                </div>
+            <div className="text-4xl sm:text-6xl mb-3 sm:mb-4">🎉</div>
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-3 sm:mb-4">Quiz Finalizado!</h2>
+            
+            <div className="bg-gradient-to-r from-primary/10 to-secondary/10 rounded-xl p-4 sm:p-6 mb-4 sm:mb-6">
+              <div className="text-3xl sm:text-4xl font-bold text-primary mb-2">
+                {score}/{questions.length}
+              </div>
+              <div className="text-sm sm:text-base text-gray-600 mb-3 sm:mb-4">
+                {((score / questions.length) * 100).toFixed(0)}% de acertos
+              </div>
+              <div className="flex justify-center gap-1 mb-3 sm:mb-4">
+                {Array.from({ length: 5 }, (_, i) => (
+                  <span
+                    key={i}
+                    className={`text-xl sm:text-2xl ${i < getScoreStars() ? 'text-yellow-400' : 'text-gray-300'}`}
+                  >
+                    ⭐
+                  </span>
+                ))}
+              </div>
+              <p className="text-sm sm:text-base text-gray-700 font-medium px-2">{getScoreMessage()}</p>
+            </div>
 
-                <div className="space-y-2 sm:space-y-3 mb-4 sm:mb-6 max-h-48 sm:max-h-64 overflow-y-auto">
-                  {questions.map((question, index) => (
-                    <div
-                      key={question.id}
-                      className={`p-2 sm:p-3 rounded-lg border-2 ${
-                        userAnswers[index] === question.correctAnswer
-                          ? 'border-green-300 bg-green-50'
+            <div className="space-y-2 sm:space-y-3 mb-4 sm:mb-6 max-h-48 sm:max-h-64 overflow-y-auto">
+              {questions.map((question, index) => (
+                <div
+                  key={question.id}
+                  className={`p-2 sm:p-3 rounded-lg border-2 ${
+                    userAnswers[index] === question.correctAnswer
+                      ? 'border-green-300 bg-green-50'
+                      : userAnswers[index] === -1
+                      ? 'border-yellow-300 bg-yellow-50'
+                      : 'border-red-300 bg-red-50'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs sm:text-sm font-medium">
+                      Pergunta {index + 1}
+                    </span>
+                    <div className="flex items-center gap-1 sm:gap-2">
+                      {userAnswers[index] === question.correctAnswer ? (
+                        <CheckCircle className="text-green-500" size={14} />
+                      ) : userAnswers[index] === -1 ? (
+                        <Clock className="text-yellow-500" size={14} />
+                      ) : (
+                        <X className="text-red-500" size={14} />
+                      )}
+                      <span className="text-xs">
+                        {userAnswers[index] === question.correctAnswer
+                          ? 'Correto'
                           : userAnswers[index] === -1
-                          ? 'border-yellow-300 bg-yellow-50'
-                          : 'border-red-300 bg-red-50'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs sm:text-sm font-medium">
-                          Pergunta {index + 1}
-                        </span>
-                        <div className="flex items-center gap-1 sm:gap-2">
-                          {userAnswers[index] === question.correctAnswer ? (
-                            <CheckCircle className="text-green-500" size={14} />
-                          ) : userAnswers[index] === -1 ? (
-                            <Clock className="text-yellow-500" size={14} />
-                          ) : (
-                            <X className="text-red-500" size={14} />
-                          )}
-                          <span className="text-xs">
-                            {userAnswers[index] === question.correctAnswer
-                              ? 'Correto'
-                              : userAnswers[index] === -1
-                              ? 'Tempo esgotado'
-                              : 'Incorreto'}
-                          </span>
-                        </div>
-                      </div>
+                          ? 'Tempo esgotado'
+                          : 'Incorreto'}
+                      </span>
+                    </div>
+                  </div>
                       {userAnswers[index] !== question.correctAnswer && gameStatus !== 'lost' && question.explanation && (
                         <motion.p
                           initial={{ opacity: 0, height: 0 }}
@@ -284,9 +313,9 @@ const QuizGame: React.FC<QuizGameProps> = ({ onBack }) => {
                           Explicação: {question.explanation}
                         </motion.p>
                       )}
-                    </div>
-                  ))}
                 </div>
+              ))}
+            </div>
               </>
             ) : (
               <>
@@ -306,6 +335,17 @@ const QuizGame: React.FC<QuizGameProps> = ({ onBack }) => {
               Jogar Novamente
             </button>
           </motion.div>
+        </div>
+      </div>
+    );
+  }
+
+  if (gameStatus === 'blocked') {
+    return (
+      <div className="container mx-auto px-4 py-8 flex flex-col items-center justify-center min-h-[60vh]">
+        <div className="bg-green-50 border border-green-200 rounded-xl p-6 text-center max-w-md">
+          <h2 className="text-xl font-bold text-green-800 mb-2">Parabéns!</h2>
+          <p className="text-gray-700 mb-4">Você já completou o quiz atual.<br/> Aguarde o administrador trocar as perguntas para jogar novamente.</p>
         </div>
       </div>
     );

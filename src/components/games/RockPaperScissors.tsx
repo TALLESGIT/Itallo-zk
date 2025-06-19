@@ -76,7 +76,7 @@ const RockPaperScissors: React.FC = () => {
     if (gameResult === 'win') {
       addWinner?.({
         game_id: 'rock_paper_scissors',
-        player_name: getPlayerName(),
+        player_name: authState.isAuthenticated && authState.user ? (authState.user.user_metadata?.name || (authState.user.email ? authState.user.email.split('@')[0] : 'Usuário')) : 'Anônimo',
         score: score.wins + 1,
         time_taken: 0,
         attempts: score.wins + score.losses + score.draws + 1,

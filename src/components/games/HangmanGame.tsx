@@ -12,13 +12,13 @@ interface HangmanGameProps {
   onBack?: () => void; // Se usado isolado, pode não ter botão de voltar
 }
 
-type GameStatus = 'playing' | 'won' | 'lost';
+type GameStatus = 'playing' | 'won' | 'lost' | 'blocked';
 
 const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
 
 const HangmanGame: React.FC<HangmanGameProps> = ({ onBack }) => {
   const { addWinner } = useGameWinners();
-  const { isAdmin } = useGameSettings();
+  const { isAdmin, isGameEnabled } = useGameSettings();
   const { authState } = useAuth();
 
   const [secretWord, setSecretWord] = useState<string>('');
@@ -33,6 +33,17 @@ const HangmanGame: React.FC<HangmanGameProps> = ({ onBack }) => {
 
   const gameId = 'hangman_game';
   const { isCoolingDown, setCooldown, CooldownMessage } = useGameCooldown(gameId);
+
+  if (!isAdmin && !isGameEnabled('hangman_game')) {
+    return (
+      <div className="container mx-auto px-4 py-8 flex flex-col items-center justify-center min-h-[60vh]">
+        <div className="bg-red-50 border border-red-200 rounded-xl p-6 text-center max-w-md">
+          <h2 className="text-xl font-bold text-red-800 mb-2">Jogo Bloqueado</h2>
+          <p className="text-gray-700 mb-4">O administrador bloqueou temporariamente o acesso ao Jogo da Forca.<br/>Tente novamente mais tarde.</p>
+        </div>
+      </div>
+    );
+  }
 
   // Buscar palavra do banco ou fallback
   const fetchWord = async () => {
@@ -71,6 +82,16 @@ const HangmanGame: React.FC<HangmanGameProps> = ({ onBack }) => {
     }
   }, [isCoolingDown]);
 
+  // Bloqueio por vitória
+  useEffect(() => {
+    if (secretWord) {
+      const wonKey = `hangman_won_${secretWord}`;
+      if (localStorage.getItem(wonKey) === 'true') {
+        setGameStatus('blocked');
+      }
+    }
+  }, [secretWord]);
+
   // Efetuar contagem regressiva
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -101,15 +122,18 @@ const HangmanGame: React.FC<HangmanGameProps> = ({ onBack }) => {
   useEffect(() => {
     if (!secretWord) return;
 
+    if (gameStatus === 'won' || gameStatus === 'lost') return; // Evita múltiplos toasts
+
     const hasWon = secretWord.split('').every((l) => guessedLetters.includes(l));
     if (hasWon) {
       setGameStatus('won');
       toast.success('Parabéns! Você venceu 🎉');
+      localStorage.setItem(`hangman_won_${secretWord}`, 'true');
       addWinner?.({
         game_id: 'hangman_game',
-        player_name: isAdmin && authState.user?.email ? authState.user.email : 'Anônimo',
+        player_name: authState.isAuthenticated && authState.user ? (authState.user.user_metadata?.name || (authState.user.email ? authState.user.email.split('@')[0] : 'Usuário')) : 'Anônimo',
         score: Math.max(0, secretWord.length * 10 - wrongGuesses * 5),
-        time_taken: 0,
+        time_taken: INITIAL_TIME - timeLeft,
         attempts: guessedLetters.length,
         difficulty: 'normal',
         game_data: { word: secretWord },
@@ -119,7 +143,7 @@ const HangmanGame: React.FC<HangmanGameProps> = ({ onBack }) => {
       setCooldown(180);
       toast.error(`Você perdeu! Tente novamente após o cooldown.`);
     }
-  }, [guessedLetters, wrongGuesses, secretWord, addWinner, setCooldown, isAdmin, authState]);
+  }, [guessedLetters, wrongGuesses, secretWord, gameStatus, addWinner, setCooldown, isAdmin, authState]);
 
   const handleLetterClick = (letter: string) => {
     if (gameStatus !== 'playing' || guessedLetters.includes(letter) || isCoolingDown) return;
@@ -214,6 +238,17 @@ const HangmanGame: React.FC<HangmanGameProps> = ({ onBack }) => {
   if (loading) {
     return (
       <div className="text-center py-8">Carregando palavra...</div>
+    );
+  }
+
+  if (gameStatus === 'blocked') {
+    return (
+      <div className="container mx-auto px-4 py-8 flex flex-col items-center justify-center min-h-[60vh]">
+        <div className="bg-green-50 border border-green-200 rounded-xl p-6 text-center max-w-md">
+          <h2 className="text-xl font-bold text-green-800 mb-2">Parabéns!</h2>
+          <p className="text-gray-700 mb-4">Você já venceu a palavra atual.<br/> Aguarde o administrador trocar a palavra para jogar novamente.</p>
+        </div>
+      </div>
     );
   }
 

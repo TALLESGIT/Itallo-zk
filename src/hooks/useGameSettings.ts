@@ -37,7 +37,6 @@ export const useGameSettings = () => {
         .order('game_name');
 
       if (supabaseError) {
-        console.warn('Supabase not available, using localStorage:', supabaseError.message);
         // Fallback to localStorage
         const stored = localStorage.getItem('gameSettings');
         if (stored) {
@@ -65,7 +64,6 @@ export const useGameSettings = () => {
         setGameSettings(data || []);
       }
     } catch (err) {
-      console.error('Error fetching game settings:', err);
       setError('Erro ao carregar configurações dos jogos');
     } finally {
       setLoading(false);
@@ -75,7 +73,6 @@ export const useGameSettings = () => {
   const updateGameSetting = async (gameName: string, isEnabled: boolean) => {
     try {
       setError(null);
-      console.log('Tentando atualizar jogo:', gameName, 'para:', isEnabled);
 
       // Try to update in Supabase first
       const { data, error: supabaseError } = await supabase
@@ -95,14 +92,11 @@ export const useGameSettings = () => {
             updated_at: new Date().toISOString(),
           });
         if (insertError) {
-          console.error('Erro ao inserir nova configuração:', insertError);
           throw insertError;
         }
       }
 
       if (supabaseError) {
-        console.error('Erro do Supabase:', supabaseError);
-        console.warn('Supabase not available, using localStorage:', supabaseError.message);
         // Fallback to localStorage
         const updatedSettings = gameSettings.map(setting =>
           setting.game_name === gameName
@@ -112,12 +106,10 @@ export const useGameSettings = () => {
         setGameSettings(updatedSettings);
         localStorage.setItem('gameSettings', JSON.stringify(updatedSettings));
       } else {
-        console.log('Atualização bem-sucedida:', data);
         // Refresh from Supabase
         await fetchGameSettings();
       }
     } catch (err) {
-      console.error('Error updating game setting:', err);
       setError('Erro ao atualizar configuração do jogo');
     }
   };

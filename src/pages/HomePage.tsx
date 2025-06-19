@@ -10,6 +10,7 @@ import ExtraNumbersModal from '../components/ui/ExtraNumbersModal';
 import ViewNumbersModal from '../components/ui/ViewNumbersModal';
 import { toast } from 'react-toastify';
 import { getParticipants } from '../services/dataService';
+import UserIdentificationModal from '../components/ui/UserIdentificationModal';
 
 const HomePage: React.FC = () => {
   const { appState } = useApp();
@@ -53,6 +54,12 @@ const HomePage: React.FC = () => {
 
   // Novo estado para redirecionamento após clicar no banner
   const [pendingBannerRedirect, setPendingBannerRedirect] = useState(false);
+
+  // Novo estado para o modal de identificação
+  const [showUserIdModal, setShowUserIdModal] = useState<null | 'extra' | 'view'>(null);
+
+  // Adicionar estado para controle de login obrigatório
+  const [requireLogin, setRequireLogin] = useState(() => !localStorage.getItem('userWhatsapp'));
 
   // Função para formatar WhatsApp
   const formatWhatsapp = (value: string): string => {
@@ -177,7 +184,7 @@ const HomePage: React.FC = () => {
       return;
     }
     if (!userWhatsapp || !userName) {
-      toast.warning('Complete seu cadastro para solicitar números extras!');
+      setShowUserIdModal('extra');
       return;
     }
     setShowExtraNumbersModal(true);
@@ -189,10 +196,26 @@ const HomePage: React.FC = () => {
       return;
     }
     if (!userWhatsapp) {
-      toast.warning('Complete seu cadastro para ver seus números!');
+      setShowUserIdModal('view');
       return;
     }
     setShowViewNumbersModal(true);
+  };
+
+  const handleUserIdentified = (name: string, whatsapp: string, number?: number) => {
+    setUserName(name);
+    setUserWhatsapp(whatsapp);
+    localStorage.setItem('userName', name);
+    localStorage.setItem('userWhatsapp', whatsapp);
+    if (number) {
+      setSelectedNumber(number);
+      setHasSelectedNumber(true);
+      localStorage.setItem('selectedNumber', number.toString());
+      localStorage.setItem('hasSelectedNumber', 'true');
+    }
+    if (showUserIdModal === 'extra') setShowExtraNumbersModal(true);
+    if (showUserIdModal === 'view') setShowViewNumbersModal(true);
+    setShowUserIdModal(null);
   };
 
   const handleRegistrationComplete = (name: string, whatsapp: string, number: number) => {
@@ -217,6 +240,28 @@ const HomePage: React.FC = () => {
     setPendingBannerRedirect(true);
     localStorage.setItem('showBannerModal', 'true');
   };
+
+  // No início do componente, antes de qualquer fluxo, se requireLogin estiver true, exibir o modal de identificação obrigatório
+  if (requireLogin) {
+    return (
+      <UserIdentificationModal
+        onClose={() => {}}
+        onIdentified={(name, whatsapp, number) => {
+          setUserName(name);
+          setUserWhatsapp(whatsapp);
+          localStorage.setItem('userName', name);
+          localStorage.setItem('userWhatsapp', whatsapp);
+          if (number) {
+            setSelectedNumber(number);
+            setHasSelectedNumber(true);
+            localStorage.setItem('selectedNumber', number.toString());
+            localStorage.setItem('hasSelectedNumber', 'true');
+          }
+          setRequireLogin(false);
+        }}
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -401,6 +446,13 @@ const HomePage: React.FC = () => {
         <ViewNumbersModal
           onClose={() => setShowViewNumbersModal(false)}
           whatsapp={userWhatsapp}
+        />
+      )}
+
+      {showUserIdModal && (
+        <UserIdentificationModal
+          onClose={() => setShowUserIdModal(null)}
+          onIdentified={handleUserIdentified}
         />
       )}
 

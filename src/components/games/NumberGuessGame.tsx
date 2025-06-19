@@ -16,7 +16,7 @@ const NumberGuessGame: React.FC<NumberGuessGameProps> = ({ onBack }) => {
   const [secretNumber, setSecretNumber] = useState<number>(0);
   const [guess, setGuess] = useState<string>('');
   const [attempts, setAttempts] = useState<{ number: number; hint: string }[]>([]);
-  const [gameStatus, setGameStatus] = useState<'playing' | 'won' | 'lost'>('playing');
+  const [gameStatus, setGameStatus] = useState<'playing' | 'won' | 'lost' | 'blocked'>('playing');
   const [range, setRange] = useState({ min: 1, max: 100 });
 
   const MAX_ATTEMPTS = 3;
@@ -39,7 +39,7 @@ const NumberGuessGame: React.FC<NumberGuessGameProps> = ({ onBack }) => {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'number_guess_config' }, payload => {
         if (payload.new?.secret) {
           setSecretNumber(payload.new.secret);
-        }
+      }
       })
       .subscribe();
 
@@ -47,6 +47,19 @@ const NumberGuessGame: React.FC<NumberGuessGameProps> = ({ onBack }) => {
       supabase.removeChannel(channel);
     };
   }, [isCoolingDown]);
+
+  // Bloqueio por vitória
+  function isBlocked(num: number) {
+    if (!num) return false;
+    const wonKey = `number_guess_won_${num}`;
+    return localStorage.getItem(wonKey) === 'true';
+  }
+
+  useEffect(() => {
+    if (secretNumber && isBlocked(secretNumber)) {
+      setGameStatus('blocked');
+    }
+  }, [secretNumber]);
 
   const fetchSecretAndStart = async () => {
     try {
@@ -59,6 +72,12 @@ const NumberGuessGame: React.FC<NumberGuessGameProps> = ({ onBack }) => {
       if (error) throw error;
       if (data) {
         setSecretNumber(data.secret);
+        // Só libera se não estiver bloqueado
+        if (!isBlocked(data.secret)) {
+          setGameStatus('playing');
+        } else {
+          setGameStatus('blocked');
+        }
       } else {
         toast.error('Jogo indisponível: número não configurado.');
         setSecretNumber(0);
@@ -72,7 +91,6 @@ const NumberGuessGame: React.FC<NumberGuessGameProps> = ({ onBack }) => {
     }
 
     setAttempts([]);
-    setGameStatus('playing');
     setGuess('');
     setRange({ min: 1, max: 100 });
   };
@@ -121,8 +139,9 @@ const NumberGuessGame: React.FC<NumberGuessGameProps> = ({ onBack }) => {
     setRange(newRange);
 
     if (guessNum === secretNumber) {
-      setGameStatus('won');
       toast.success(`Parabéns! Você descobriu o número em ${newAttempts.length} tentativa${newAttempts.length > 1 ? 's' : ''}!`);
+      localStorage.setItem(`number_guess_won_${secretNumber}`, 'true');
+      setGameStatus('blocked');
       addWinner?.({
         game_id: 'number_guess',
         player_name: getPlayerName(),
@@ -172,6 +191,17 @@ const NumberGuessGame: React.FC<NumberGuessGameProps> = ({ onBack }) => {
     return (
       <div className="container mx-auto px-2 sm:px-4 py-4 sm:py-8 flex items-center justify-center min-h-[50vh]">
         <CooldownMessage />
+      </div>
+    );
+  }
+
+  if (gameStatus === 'blocked') {
+    return (
+      <div className="container mx-auto px-4 py-8 flex flex-col items-center justify-center min-h-[60vh]">
+        <div className="bg-green-50 border border-green-200 rounded-xl p-6 text-center max-w-md">
+          <h2 className="text-xl font-bold text-green-800 mb-2">Parabéns!</h2>
+          <p className="text-gray-700 mb-4">Você já descobriu o número atual.<br/> Aguarde o administrador trocar o número para jogar novamente.</p>
+        </div>
       </div>
     );
   }
@@ -277,9 +307,9 @@ const NumberGuessGame: React.FC<NumberGuessGameProps> = ({ onBack }) => {
           {(gameStatus !== 'playing' && !isCoolingDown) && (
             <div className="text-center mt-6">
               {gameStatus === 'won' ? (
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
                   className="p-4 bg-green-50 border border-green-200 text-green-800 rounded-lg"
                 >
                   <Trophy className="mx-auto mb-2" size={30} />

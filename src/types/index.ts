@@ -31,3 +31,24 @@ export interface DrawConfig {
   imageUrl: string;
   isFree: boolean;
 }
+
+export interface QuizQuestion {
+  id: string;
+  question_text: string;
+  options: string[];
+  correct_answer: string;
+  category?: string;
+  difficulty?: string;
+  is_active: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface HangmanWord {
+  id: number;
+  word: string;
+  hint?: string;
+  is_active?: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
